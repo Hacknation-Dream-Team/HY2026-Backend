@@ -4,7 +4,6 @@ public class RouteDto
 {
     public long Id { get; set; }
     public long UserId { get; set; }
-    public PointDto StartP { get; set; } = null!;
-    public PointDto EndP { get; set; } = null!;
+    public List<PointDto> Points { get; set; } = new();
     public string? LookingFor { get; set; }
 }

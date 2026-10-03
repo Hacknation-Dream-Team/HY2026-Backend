@@ -17,8 +17,16 @@ public class RouteService : IRouteService
 
     public async Task<RouteDto> CreateRouteAsync(long userId, CreateRouteDto createRouteDto)
     {
-        var startPoint = new Point(createRouteDto.StartP.Longitude, createRouteDto.StartP.Latitude) { SRID = 4326 };
-        var endPoint = new Point(createRouteDto.EndP.Longitude, createRouteDto.EndP.Latitude) { SRID = 4326 };
+        if (createRouteDto.Points == null || createRouteDto.Points.Count < 2)
+        {
+            throw new ArgumentException("Route must contain at least 2 points (start and end).");
+        }
+
+        var startDto = createRouteDto.Points.First();
+        var endDto = createRouteDto.Points.Last();
+
+        var startPoint = new Point(startDto.Longitude, startDto.Latitude) { SRID = 4326 };
+        var endPoint = new Point(endDto.Longitude, endDto.Latitude) { SRID = 4326 };
 
         var route = new RouteModel
         {
@@ -78,15 +86,10 @@ public class RouteService : IRouteService
     {
         Id = route.Id,
         UserId = route.UserId,
-        StartP = new PointDto
+        Points = new List<PointDto>
         {
-            Latitude = route.StartP.Y,
-            Longitude = route.StartP.X
-        },
-        EndP = new PointDto
-        {
-            Latitude = route.EndP.Y,
-            Longitude = route.EndP.X
+            new PointDto { Latitude = route.StartP.Y, Longitude = route.StartP.X },
+            new PointDto { Latitude = route.EndP.Y, Longitude = route.EndP.X }
         },
         LookingFor = route.LookingFor
     };

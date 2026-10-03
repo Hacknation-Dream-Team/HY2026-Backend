@@ -33,8 +33,15 @@ public class RoutesController : ControllerBase
             return Unauthorized();
         }
 
-        var route = await _routeService.CreateRouteAsync(currentUserId.Value, dto);
-        return CreatedAtAction(nameof(GetById), new { id = route.Id }, route);
+        try
+        {
+            var route = await _routeService.CreateRouteAsync(currentUserId.Value, dto);
+            return CreatedAtAction(nameof(GetById), new { id = route.Id }, route);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>

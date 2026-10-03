@@ -5,10 +5,8 @@ namespace HY2026_Backend.DTOs;
 public class CreateRouteDto
 {
     [Required]
-    public PointDto StartP { get; set; } = null!;
-
-    [Required]
-    public PointDto EndP { get; set; } = null!;
+    [MinLength(2, ErrorMessage = "Route must contain at least 2 points (start and end).")]
+    public List<PointDto> Points { get; set; } = new();
 
     public string? LookingFor { get; set; }
 }

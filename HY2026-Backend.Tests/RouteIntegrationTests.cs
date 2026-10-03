@@ -45,11 +45,14 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var authenticatedClient = _factory.CreateClient();
         authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwtToken);
 
-        // STEP 2: Create a route
+        // STEP 2: Create a route with Points list
         var createRouteDto = new CreateRouteDto
         {
-            StartP = new PointDto { Latitude = 52.2297, Longitude = 21.0122 }, // Warsaw
-            EndP = new PointDto { Latitude = 50.0647, Longitude = 19.9450 },   // Krakow
+            Points = new List<PointDto>
+            {
+                new PointDto { Latitude = 52.2297, Longitude = 21.0122 }, // Warsaw (StartP)
+                new PointDto { Latitude = 50.0647, Longitude = 19.9450 }  // Krakow (EndP)
+            },
             LookingFor = "Passenger / Pasażer"
         };
 
@@ -60,10 +63,11 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         Assert.NotNull(createdRoute);
         Assert.True(createdRoute.Id > 0);
         Assert.Equal(userId, createdRoute.UserId);
-        Assert.Equal(52.2297, createdRoute.StartP.Latitude, 4);
-        Assert.Equal(21.0122, createdRoute.StartP.Longitude, 4);
-        Assert.Equal(50.0647, createdRoute.EndP.Latitude, 4);
-        Assert.Equal(19.9450, createdRoute.EndP.Longitude, 4);
+        Assert.Equal(2, createdRoute.Points.Count);
+        Assert.Equal(52.2297, createdRoute.Points[0].Latitude, 4);
+        Assert.Equal(21.0122, createdRoute.Points[0].Longitude, 4);
+        Assert.Equal(50.0647, createdRoute.Points[1].Latitude, 4);
+        Assert.Equal(19.9450, createdRoute.Points[1].Longitude, 4);
         Assert.Equal("Passenger / Pasażer", createdRoute.LookingFor);
 
         var routeId = createdRoute.Id;
@@ -76,6 +80,7 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         Assert.NotNull(fetchedRoute);
         Assert.Equal(routeId, fetchedRoute.Id);
         Assert.Equal(userId, fetchedRoute.UserId);
+        Assert.Equal(2, fetchedRoute.Points.Count);
 
         // STEP 4: Get all routes
         var getAllResponse = await client.GetAsync($"/api/routes?userId={userId}");
