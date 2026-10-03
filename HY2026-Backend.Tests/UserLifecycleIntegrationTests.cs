@@ -112,4 +112,36 @@ public class UserLifecycleIntegrationTests : IClassFixture<WebApplicationFactory
         var getDeletedUserResponse = await client.GetAsync($"/api/users/{userId}");
         Assert.Equal(HttpStatusCode.NotFound, getDeletedUserResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task RegisterAndLogin_WithShortPassword_Succeeds()
+    {
+        var client = _factory.CreateClient();
+        var uniqueEmail = $"short.pw.{Guid.NewGuid():N}@example.com";
+        var shortPassword = "123";
+
+        var registerDto = new CreateUserDto
+        {
+            Name = "Short",
+            Surname = "Pass",
+            Email = uniqueEmail,
+            Password = shortPassword
+        };
+
+        var registerResponse = await client.PostAsJsonAsync("/api/users", registerDto);
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+
+        var loginDto = new LoginDto
+        {
+            Email = uniqueEmail,
+            Password = shortPassword
+        };
+
+        var loginResponse = await client.PostAsJsonAsync("/api/users/login", loginDto);
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponseDto>();
+        Assert.NotNull(loginResult);
+        Assert.False(string.IsNullOrWhiteSpace(loginResult.Token));
+    }
 }
