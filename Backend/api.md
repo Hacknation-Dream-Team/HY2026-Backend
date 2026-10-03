@@ -19,6 +19,7 @@ Wszystkie endpointy mają prefiks `/api`. Autoryzacja odbywa się za pomocą tok
     "email": "jan.kowalski@example.com",
     "password": "Haslo123!",
     "phone": "+48123456789",       // opcjonalne
+    "gender": "Male",               // opcjonalne ("Female", "Male", "Other")
     "profileImg": "https://..."     // opcjonalne
   }
   ```
@@ -33,6 +34,7 @@ Wszystkie endpointy mają prefiks `/api`. Autoryzacja odbywa się za pomocą tok
       "surname": "Kowalski",
       "email": "jan.kowalski@example.com",
       "phone": "+48123456789",
+      "gender": "Male",
       "profileImg": "https://..."
     }
   }
@@ -73,6 +75,7 @@ Wszystkie endpointy mają prefiks `/api`. Autoryzacja odbywa się za pomocą tok
     "name": "Jan",
     "surname": "Nowak",
     "phone": "+48987654321",
+    "gender": "Male",               // opcjonalne ("Female", "Male", "Other")
     "profileImg": "https://..."
   }
   ```

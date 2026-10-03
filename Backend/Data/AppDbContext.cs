@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.HasPostgresEnum<Weekday>("weekday");
         modelBuilder.HasPostgresEnum<MatchStatus>("match_status");
+        modelBuilder.HasPostgresEnum<UserGender>("user_gender");
 
         modelBuilder.Entity<User>(entity =>
         {

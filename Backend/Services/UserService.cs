@@ -80,6 +80,7 @@ public class UserService : IUserService
             Email = normalizedEmail,
             Role = HY2026_Backend.Helpers.UserRoles.User,
             Phone = createUserDto.Phone,
+            Gender = createUserDto.Gender,
             Password = passwordHash,
             ProfileImg = createUserDto.ProfileImg
         };
@@ -112,6 +113,7 @@ public class UserService : IUserService
         user.Name = updateUserDto.Name;
         user.Surname = updateUserDto.Surname;
         user.Phone = updateUserDto.Phone;
+        user.Gender = updateUserDto.Gender;
         user.ProfileImg = updateUserDto.ProfileImg;
 
         await _context.SaveChangesAsync();
@@ -181,6 +183,7 @@ public class UserService : IUserService
         Email = user.Email,
         Role = string.IsNullOrWhiteSpace(user.Role) ? HY2026_Backend.Helpers.UserRoles.User : user.Role,
         Phone = user.Phone,
+        Gender = user.Gender,
         ProfileImg = user.ProfileImg
     };
 }

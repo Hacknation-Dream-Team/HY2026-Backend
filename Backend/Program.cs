@@ -27,6 +27,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         o.UseNetTopologySuite();
         o.MapEnum<Weekday>("weekday");
         o.MapEnum<MatchStatus>("match_status");
+        o.MapEnum<UserGender>("user_gender");
     }));
 
 // Dependency Injection
@@ -79,6 +80,14 @@ using (var scope = app.Services.CreateScope())
     {
         await dbContext.Database.EnsureCreatedAsync();
         await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS role text DEFAULT 'User';");
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_gender') THEN 
+                    CREATE TYPE user_gender AS ENUM ('female', 'male', 'other'); 
+                END IF; 
+            END $$;");
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender user_gender;");
 
         // Seed default Admin user if admin@system.local does not exist
         var adminEmail = "admin@system.local";

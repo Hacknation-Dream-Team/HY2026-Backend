@@ -32,6 +32,9 @@ public class User
     [Column("phone")]
     public string? Phone { get; set; }
 
+    [Column("gender")]
+    public UserGender? Gender { get; set; }
+
     [Required]
     [Column("password")]
     public string Password { get; set; } = string.Empty;

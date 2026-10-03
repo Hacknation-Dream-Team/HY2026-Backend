@@ -11,6 +11,7 @@ Połączenie: zmienna środowiskowa `DATABASE_URL` (connection string dostajesz 
 | `schema.sql`  | **kasuje wszystkie tabele i dane**, potem tworzy schemat od nowa |
 | `seed.sql`    | słownik aut z EEA (1430 wierszy) + dane mockowe (Warszawa, 3 firmy, 60 userów). Odpalać po `schema.sql`. Hasło wszystkich mockowych kont: `haslo123` |
 | `queries.sql` | zapytania podglądowe (trasy, ogłoszenia, matche, GeoJSON na mapę) |
+| `scripts/load_eea_raw.py` + `.github/workflows/refresh-car-models.yml` | odświeżenie `car_models` z EEA (patrz niżej) |
 
 ## Model w skrócie
 
@@ -36,6 +37,7 @@ matches 1 ── N rides
 |----------------|----------|
 | `weekday`      | `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun` |
 | `match_status` | `pending` (pasażer się zgłosił), `accepted` (obie strony się zgodziły), `rejected` (kierowca odmówił), `cancelled` (ktoś zrezygnował później) |
+| `user_gender`  | `female`, `male`, `other` |
 
 ## C# / Npgsql
 
@@ -44,6 +46,7 @@ Enumy i PostGIS trzeba zarejestrować, inaczej odczyt się wywali:
 ```csharp
 public enum Weekday { Mon, Tue, Wed, Thu, Fri, Sat, Sun }
 public enum MatchStatus { Pending, Accepted, Rejected, Cancelled }
+public enum UserGender { Female, Male, Other }
 
 // EF Core (Npgsql 9+):
 options.UseNpgsql(connStr, o =>
@@ -51,6 +54,7 @@ options.UseNpgsql(connStr, o =>
     o.UseNetTopologySuite();
     o.MapEnum<Weekday>("weekday");
     o.MapEnum<MatchStatus>("match_status");
+    o.MapEnum<UserGender>("user_gender");
 });
 ```
 
@@ -75,6 +79,7 @@ options.UseNpgsql(connStr, o =>
 | organization_id | bigint | FK → organizations.id, wymagane |
 | name            | text   | |
 | surname         | text   | |
+| gender          | user_gender | opcjonalna; NULL = nie podano |
 | email           | text   | unikalny |
 | phone           | text   | opcjonalny |
 | password        | text   | zapisuj hash (bcrypt/argon2), nie hasło jawne |
@@ -82,7 +87,7 @@ options.UseNpgsql(connStr, o =>
 
 ## car_models
 
-Słownik modeli aut z EEA (marka + model + paliwo). Spalanie i CO₂ to dane homologacyjne (średnie z lat 2010–2025).
+Słownik modeli aut z EEA (marka + model + paliwo). Spalanie i CO₂ to dane homologacyjne (średnie z lat 2010–2025). `UNIQUE (brand, model, fuel_type)`.
 
 | kolumna       | typ      | uwagi |
 |---------------|----------|-------|
@@ -166,6 +171,31 @@ PK: `(route_id, seq)`.
 | id        | bigint | PK |
 | match_id  | bigint | FK → matches.id |
 | ride_date | date   | `UNIQUE (match_id, ride_date)` |
+
+## Matching: `find_matches`
+
+Gotowa funkcja w bazie: dla zapytania pasażera zwraca pasujące ogłoszenia, najlepsze pierwsze (najbliższy przystanek, potem najmniejsza różnica godzin).
+
+```sql
+SELECT * FROM find_matches(5);                          -- domyślnie: 500 m, ±15 min
+SELECT * FROM find_matches(5, 800, '30 minutes');      -- luźniejsze kryteria
+```
+
+Warunki: ogłoszenie aktywne, ta sama firma, kierowca ≠ pasażer, co najmniej jeden wspólny dzień, `departure_time` w oknie czasowym, przystanek w promieniu od startu pasażera i dalszy przystanek w promieniu od jego mety, wolne miejsce, brak istniejącego matcha tej pary.
+
+Zwraca: `advertisement_id`, `driver_id`, `pickup_seq`, `dropoff_seq`, `pickup_distance_m`, `dropoff_distance_m`, `departure_time`, `free_seats`. Z tych pól backend tworzy wiersz w `matches` (status `pending`).
+
+Ograniczenia: okno czasowe porównuje godzinę wyjazdu kierowcy z godziną pasażera (bez szacowania czasu dojazdu do przystanku); nie obsługuje przejścia przez północ.
+
+## Odświeżanie `car_models` z EEA
+
+Backendu nie dotyczy, opis dla porządku. Raz na jakiś czas (gdy EEA opublikuje nowy rok) ręcznie odpala się workflow `refresh-car-models` w GitHub Actions:
+
+1. `scripts/load_eea_raw.py` pobiera surowe agregaty z EEA do CSV,
+2. CSV trafia do tabeli `eea_raw`,
+3. `CALL refresh_car_models();` czyści nazwy marek i modeli, liczy spalanie i robi upsert do `car_models` po `(brand, model, fuel_type)`. Istniejące `id` zostają, więc `users_cars.brand_id` się nie rozjeżdża.
+
+`eea_raw` to tabela robocza (staging), aplikacja jej nie używa. Funkcje `eea_starts_with_word` i `eea_clean_model` to pomocnicze funkcje procedury. Czas odświeżenia: ok. 5 s.
 
 ## Czego baza NIE pilnuje (musi backend)
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HY2026_Backend.Models;
 
 namespace HY2026_Backend.DTOs;
 
@@ -13,6 +14,8 @@ public class UpdateUserDto
     public string Surname { get; set; } = string.Empty;
 
     public string? Phone { get; set; }
+
+    public UserGender? Gender { get; set; }
 
     public string? ProfileImg { get; set; }
 }
