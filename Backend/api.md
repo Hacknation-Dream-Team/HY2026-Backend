@@ -210,3 +210,34 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **`PUT /api/matches/{id}/status`** `[Wymaga JWT]`
 - **Body:** `"Accepted"` (lub `"Rejected"`, `"Cancelled"`, `"Pending"`)
 - **Odpowiedź (200 OK):** Zaktualizowany obiekt `MatchDto`.
+
+---
+
+## 4. Pozostałe moduły (Pasażerowie, Kierowcy, Pojazdy, Organizacje, Przejazdy)
+
+### Zapytania o przejazd - Pasażer (`/api/riderequests`)
+- **`POST /api/riderequests`** `[Wymaga JWT]` - Utworzenie nowego zapytania o przejazd przez pasażera.
+- **`GET /api/riderequests`** `[Wymaga JWT]` - Pobranie zapytań o przejazd zalogowanego użytkownika.
+- **`GET /api/riderequests/{id}`** `[Wymaga JWT]` - Pobranie zapytania o przejazd po ID (dla zalogowanego użytkownika).
+- **`DELETE /api/riderequests/{id}`** `[Wymaga JWT]` - Usunięcie zapytania o przejazd po ID (dla zalogowanego użytkownika).
+
+### Ogłoszenia - Kierowca (`/api/advertisements`)
+- **`POST /api/advertisements`** `[Wymaga JWT]` - Utworzenie nowego ogłoszenia przez kierowcę na wcześniej zdefiniowanej trasie.
+- **`GET /api/advertisements`** `[Wymaga JWT]` - Pobranie ogłoszeń zalogowanego użytkownika.
+- **`GET /api/advertisements/{id}`** `[Wymaga JWT]` - Pobranie ogłoszenia po ID (dla zalogowanego użytkownika).
+- **`DELETE /api/advertisements/{id}`** `[Wymaga JWT]` - Usunięcie ogłoszenia po ID (dla zalogowanego użytkownika).
+
+### Pojazdy użytkownika i modele aut (`/api/cars`)
+- **`GET /api/cars/models`** `[Wymaga JWT]` - Pobranie listy dostępnych w bazie modeli samochodów.
+- **`POST /api/cars`** `[Wymaga JWT]` - Przypisanie modelu samochodu z bazy do profilu użytkownika.
+- **`GET /api/cars`** `[Wymaga JWT]` - Pobranie listy pojazdów zalogowanego użytkownika.
+- **`DELETE /api/cars/{id}`** `[Wymaga JWT]` - Usunięcie pojazdu użytkownika o podanym ID.
+
+### Organizacje (`/api/organizations`)
+- **`POST /api/organizations`** `[Wymaga JWT]` - Utworzenie nowej organizacji.
+- **`GET /api/organizations`** - Pobranie listy wszystkich dostępnych organizacji (nie wymaga autoryzacji).
+- **`GET /api/organizations/{id}`** - Pobranie konkretnej organizacji po jej ID (nie wymaga autoryzacji).
+
+### Przejazdy (dziennik zrealizowanych lub planowanych przejazdów na bazie aktywnego matcha) (`/api/rides`)
+- **`POST /api/rides`** `[Wymaga JWT]` - Utworzenie planowanego/zrealizowanego przejazdu dla danego Match ID z przypisaną konkretną datą.
+- **`GET /api/rides`** `[Wymaga JWT]` - Pobranie listy zrealizowanych i planowanych przejazdów, w których zalogowany użytkownik uczestniczy (albo jako kierowca, albo jako pasażer).

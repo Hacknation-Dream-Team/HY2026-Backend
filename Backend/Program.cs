@@ -34,6 +34,11 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRouteService, RouteService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<IRideRequestService, RideRequestService>();
+builder.Services.AddScoped<IAdvertisementService, AdvertisementService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+builder.Services.AddScoped<ICarService, CarService>();
+builder.Services.AddScoped<IRideService, RideService>();
 
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] 
