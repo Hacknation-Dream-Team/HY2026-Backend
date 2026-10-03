@@ -150,3 +150,63 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **`DELETE /api/routes/{id}`** `[Wymaga JWT]`
 - **Opis:** Usuwa trasę o podanym ID. Użytkownik może usunąć tylko własną trasę.
 - **Odpowiedź (204 No Content)**
+
+---
+
+## 3. Dopasowania i Matche (`/api/matches`)
+
+### Wyszukiwanie pasujących tras (Matching)
+- **`GET /api/matches`** `[Wymaga JWT]`
+- **Opis:** Wyszukuje pasujące ogłoszenia kierowców przy użyciu funkcji PostgreSQL `find_matches`. Jeśli `requestId` nie zostanie podany w query, automatycznie wyszukuje dla aktywnego zapytania przejazdu zalogowanego użytkownika.
+- **Parametry query:**
+  - `requestId` (`long`, opcjonalny) – ID zapytania w tabeli `ride_requests`.
+  - `maxDistanceMeters` (`int`, opcjonalny, domyślnie `500`) – maksymalny promień od przystanków w metrach.
+  - `timeWindowMinutes` (`int`, opcjonalny, domyślnie `15`) – tolerancja czasu odjazdu w minutach.
+- **Odpowiedź (200 OK):**
+  ```json
+  [
+    {
+      "advertisementId": 12,
+      "driverId": 3,
+      "pickupSeq": 1,
+      "dropoffSeq": 3,
+      "pickupDistanceM": 120,
+      "dropoffDistanceM": 45,
+      "departureTime": "07:30:00",
+      "freeSeats": 3
+    }
+  ]
+  ```
+
+### Zgłoszenie matcha (Pasażer wybiera ogłoszenie)
+- **`POST /api/matches`** `[Wymaga JWT]`
+- **Opis:** Tworzy wniosek o match pomiędzy zapytaniem pasażera a ogłoszeniem kierowcy ze statusem `Pending`.
+- **Body:**
+  ```json
+  {
+    "advertisementId": 12,
+    "requestId": 9,
+    "pickupSeq": 1,
+    "dropoffSeq": 3
+  }
+  ```
+- **Odpowiedź (201 Created):**
+  ```json
+  {
+    "id": 1,
+    "advertisementId": 12,
+    "requestId": 9,
+    "pickupSeq": 1,
+    "dropoffSeq": 3,
+    "status": "Pending"
+  }
+  ```
+
+### Moje matche
+- **`GET /api/matches/my`** `[Wymaga JWT]`
+- **Opis:** Zwraca listę wszystkich matchy zalogowanego użytkownika (zarówno jako pasażera, jak i kierowcy).
+
+### Zmiana statusu matcha (Akceptacja / Odmowa)
+- **`PUT /api/matches/{id}/status`** `[Wymaga JWT]`
+- **Body:** `"Accepted"` (lub `"Rejected"`, `"Cancelled"`, `"Pending"`)
+- **Odpowiedź (200 OK):** Zaktualizowany obiekt `MatchDto`.

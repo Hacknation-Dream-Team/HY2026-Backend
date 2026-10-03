@@ -1,3 +1,4 @@
+using HY2026_Backend.DTOs;
 using HY2026_Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<RideRequest> RideRequests => Set<RideRequest>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Ride> Rides => Set<Ride>();
+    public DbSet<MatchResultDto> MatchResults => Set<MatchResultDto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +46,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Ride>(entity =>
         {
             entity.HasIndex(r => new { r.MatchId, r.RideDate }).IsUnique();
+        });
+
+        modelBuilder.Entity<MatchResultDto>(entity =>
+        {
+            entity.HasNoKey();
         });
     }
 }
