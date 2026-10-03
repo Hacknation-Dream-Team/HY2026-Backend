@@ -1,0 +1,176 @@
+# Schemat bazy 
+
+Baza: PostgreSQL + PostGIS (Neon). Pełny SQL w `schema.sql`, diagram w `erd-draft.md`.
+
+Połączenie: zmienna środowiskowa `DATABASE_URL` (connection string dostajesz prywatnie, nie commituj go do repo).
+
+## Pliki
+
+| plik          | co robi |
+|---------------|---------|
+| `schema.sql`  | **kasuje wszystkie tabele i dane**, potem tworzy schemat od nowa |
+| `seed.sql`    | słownik aut z EEA (1430 wierszy) + dane mockowe (Warszawa, 3 firmy, 60 userów). Odpalać po `schema.sql`. Hasło wszystkich mockowych kont: `haslo123` |
+| `queries.sql` | zapytania podglądowe (trasy, ogłoszenia, matche, GeoJSON na mapę) |
+
+## Model w skrócie
+
+- **Organizacja:** każdy user należy do dokładnie jednej firmy. Matching tylko w obrębie tej samej firmy.
+- **Kierowca:** `routes` (trasa) → `route_points` (przystanki po kolei) → `advertisements` (oferta: kiedy, ile miejsc, którym autem). Jedna trasa może mieć kilka ogłoszeń (np. pn–pt 7:30 i sobota 10:00).
+- **Pasażer:** `ride_requests` (skąd → dokąd, kiedy).
+- **`matches`:** jeden wiersz = jeden pasażer na jednym ogłoszeniu, z przystankiem wsiadania i wysiadania. To umowa, przy commute trwa tygodniami.
+- **`rides`:** dziennik: pasażer z danego matcha faktycznie pojechał danego dnia. Brak wiersza = nie jechał.
+
+```
+organizations 1 ── N users
+users 1 ── N users_cars N ── 1 car_models
+users 1 ── N routes 1 ── N route_points
+                  routes 1 ── N advertisements N ── 1 users_cars
+users 1 ── N ride_requests
+advertisements 1 ── N matches N ── 1 ride_requests
+matches 1 ── N rides
+```
+
+## Typy
+
+| typ            | wartości |
+|----------------|----------|
+| `weekday`      | `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun` |
+| `match_status` | `pending` (pasażer się zgłosił), `accepted` (obie strony się zgodziły), `rejected` (kierowca odmówił), `cancelled` (ktoś zrezygnował później) |
+
+## C# / Npgsql
+
+Enumy i PostGIS trzeba zarejestrować, inaczej odczyt się wywali:
+
+```csharp
+public enum Weekday { Mon, Tue, Wed, Thu, Fri, Sat, Sun }
+public enum MatchStatus { Pending, Accepted, Rejected, Cancelled }
+
+// EF Core (Npgsql 9+):
+options.UseNpgsql(connStr, o =>
+{
+    o.UseNetTopologySuite();
+    o.MapEnum<Weekday>("weekday");
+    o.MapEnum<MatchStatus>("match_status");
+});
+```
+
+- Npgsql domyślnie zamienia `Mon` → `mon`, `Pending` → `pending`, więc nazwy się zgadzają bez dodatkowej konfiguracji.
+- `weekday[]` → `Weekday[]` (albo `List<Weekday>`).
+- `geography(Point, 4326)` → `NetTopologySuite.Geometries.Point`. Uwaga na kolejność: `X` = długość (lng), `Y` = szerokość (lat), SRID 4326.
+- `time` → `TimeOnly`, `date` → `DateOnly`.
+
+## organizations
+
+| kolumna  | typ                    | uwagi |
+|----------|------------------------|-------|
+| id       | bigint                 | PK, generowany |
+| name     | text                   | |
+| location | geography(Point, 4326) | biuro firmy; backend wstawia je jako start albo metę trasy/zapytania |
+
+## users
+
+| kolumna         | typ    | uwagi |
+|-----------------|--------|-------|
+| id              | bigint | PK, generowany |
+| organization_id | bigint | FK → organizations.id, wymagane |
+| name            | text   | |
+| surname         | text   | |
+| email           | text   | unikalny |
+| phone           | text   | opcjonalny |
+| password        | text   | zapisuj hash (bcrypt/argon2), nie hasło jawne |
+| profile_img     | text   | opcjonalny, URL lub ścieżka |
+
+## car_models
+
+Słownik modeli aut z EEA (marka + model + paliwo). Spalanie i CO₂ to dane homologacyjne (średnie z lat 2010–2025).
+
+| kolumna       | typ      | uwagi |
+|---------------|----------|-------|
+| id            | bigint   | PK |
+| brand         | text     | np. `SKODA` |
+| model         | text     | np. `OCTAVIA` |
+| fuel_type     | text     | `PETROL`, `DIESEL`, `ELECTRIC`, `PETROL/ELECTRIC`, `DIESEL/ELECTRIC`, `LPG`, `NG`, `E85`, `CNG` |
+| l_per_100km   | numeric  | NULL dla elektryków; bywa NULL dla LPG/NG/E85 |
+| kwh_per_100km | numeric  | tylko elektryki i hybrydy plug-in |
+| co2_g_km      | integer  | |
+| seats         | smallint | zawsze NULL (EEA nie podaje); liczba miejsc jest w ogłoszeniu |
+
+## users_cars
+
+| kolumna  | typ    | uwagi |
+|----------|--------|-------|
+| id       | bigint | PK |
+| u_id     | bigint | FK → users.id |
+| brand_id | bigint | FK → car_models.id |
+
+## routes
+
+Trasa kierowcy. Przebieg jest w `route_points`.
+
+| kolumna | typ    | uwagi |
+|---------|--------|-------|
+| id      | bigint | PK |
+| user_id | bigint | FK → users.id (kierowca) |
+
+## route_points
+
+| kolumna  | typ                    | uwagi |
+|----------|------------------------|-------|
+| route_id | bigint                 | FK → routes.id |
+| seq      | smallint               | kolejność: 0 = start, ostatni = meta, bez dziur |
+| point    | geography(Point, 4326) | `ST_MakePoint(lng, lat)` |
+
+PK: `(route_id, seq)`.
+
+## advertisements
+
+| kolumna        | typ       | uwagi |
+|----------------|-----------|-------|
+| id             | bigint    | PK |
+| route_id       | bigint    | FK → routes.id; kierowcę bierzesz z `routes.user_id` |
+| users_car_id   | bigint    | FK → users_cars.id, opcjonalne (kierowca może nie podać auta → domyślne spalanie) |
+| seats          | smallint  | oferowane miejsca, > 0 |
+| departure_time | time      | godzina wyjazdu |
+| days_of_week   | weekday[] | dni; ogłoszenie jednorazowe = jeden dzień + `is_recurring = false` |
+| is_recurring   | boolean   | domyślnie true |
+| is_active      | boolean   | domyślnie true |
+| description    | text      | opcjonalny opis od kierowcy |
+
+## ride_requests
+
+| kolumna        | typ                    | uwagi |
+|----------------|------------------------|-------|
+| id             | bigint                 | PK |
+| user_id        | bigint                 | FK → users.id (pasażer) |
+| start_p        | geography(Point, 4326) | skąd |
+| end_p          | geography(Point, 4326) | dokąd |
+| departure_time | time                   | kiedy chce jechać |
+| days_of_week   | weekday[]              | |
+| is_active      | boolean                | domyślnie true |
+
+## matches
+
+| kolumna          | typ          | uwagi |
+|------------------|--------------|-------|
+| id               | bigint       | PK |
+| advertisement_id | bigint       | FK → advertisements.id |
+| request_id       | bigint       | FK → ride_requests.id |
+| pickup_seq       | smallint     | przystanek wsiadania (`route_points.seq` trasy ogłoszenia) |
+| dropoff_seq      | smallint     | przystanek wysiadania; `CHECK (pickup_seq < dropoff_seq)` |
+| status           | match_status | domyślnie `pending` |
+
+## rides
+
+| kolumna   | typ    | uwagi |
+|-----------|--------|-------|
+| id        | bigint | PK |
+| match_id  | bigint | FK → matches.id |
+| ride_date | date   | `UNIQUE (match_id, ride_date)` |
+
+## Czego baza NIE pilnuje (musi backend)
+
+- `pickup_seq` / `dropoff_seq` muszą istnieć w `route_points` trasy tego ogłoszenia (nie da się tego zrobić FK).
+- Zaakceptowanych matchy na ogłoszeniu nie więcej niż `advertisements.seats`.
+- `advertisements.users_car_id` musi należeć do kierowcy trasy (`users_cars.u_id = routes.user_id`).
+- Kierowca i pasażer z tej samej organizacji; kierowca ≠ pasażer.
+- Wpis w `rides` tylko dla matcha `accepted` i tylko w dzień, który jest w `days_of_week` ogłoszenia i zapytania.

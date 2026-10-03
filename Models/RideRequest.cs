@@ -1,30 +1,30 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NetTopologySuite.Geometries;
 
 namespace HY2026_Backend.Models;
 
-[Table("advertisements")]
-public class Advertisement
+[Table("ride_requests")]
+public class RideRequest
 {
     [Key]
     [Column("id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
-    [Column("route_id")]
-    public long RouteId { get; set; }
+    [Column("user_id")]
+    public long UserId { get; set; }
 
-    [ForeignKey(nameof(RouteId))]
-    public RouteModel? Route { get; set; }
+    [ForeignKey(nameof(UserId))]
+    public User? User { get; set; }
 
-    [Column("users_car_id")]
-    public long? UsersCarId { get; set; }
+    [Required]
+    [Column("start_p", TypeName = "geography(Point, 4326)")]
+    public Point StartP { get; set; } = null!;
 
-    [ForeignKey(nameof(UsersCarId))]
-    public UserCar? UsersCar { get; set; }
-
-    [Column("seats")]
-    public short Seats { get; set; }
+    [Required]
+    [Column("end_p", TypeName = "geography(Point, 4326)")]
+    public Point EndP { get; set; } = null!;
 
     [Column("departure_time")]
     public TimeOnly DepartureTime { get; set; }
@@ -32,14 +32,8 @@ public class Advertisement
     [Column("days_of_week")]
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
 
-    [Column("is_recurring")]
-    public bool IsRecurring { get; set; } = true;
-
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
-
-    [Column("description")]
-    public string? Description { get; set; }
 
     public ICollection<Match> Matches { get; set; } = new List<Match>();
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using HY2026_Backend.Data;
 using HY2026_Backend.Helpers;
+using HY2026_Backend.Models;
 using HY2026_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,12 @@ var parsedConnectionString = ConnectionStringHelper.ParseConnectionString(rawCon
 
 // DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(parsedConnectionString, o => o.UseNetTopologySuite()));
+    options.UseNpgsql(parsedConnectionString, o =>
+    {
+        o.UseNetTopologySuite();
+        o.MapEnum<Weekday>("weekday");
+        o.MapEnum<MatchStatus>("match_status");
+    }));
 
 // Dependency Injection
 builder.Services.AddScoped<ITokenService, TokenService>();

@@ -4,6 +4,8 @@ namespace HY2026_Backend.DTOs;
 
 public class CreateUserDto
 {
+    public long? OrganizationId { get; set; }
+
     [Required(ErrorMessage = "First name is required")]
     public string Name { get; set; } = string.Empty;
 

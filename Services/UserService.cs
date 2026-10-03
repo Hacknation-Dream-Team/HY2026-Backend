@@ -2,6 +2,7 @@ using HY2026_Backend.Data;
 using HY2026_Backend.DTOs;
 using HY2026_Backend.Models;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 
 namespace HY2026_Backend.Services;
 
@@ -44,10 +45,36 @@ public class UserService : IUserService
             throw new InvalidOperationException("A user with the specified email address already exists.");
         }
 
+        long organizationId;
+        if (createUserDto.OrganizationId.HasValue && createUserDto.OrganizationId.Value > 0)
+        {
+            organizationId = createUserDto.OrganizationId.Value;
+        }
+        else
+        {
+            var existingOrg = await _context.Organizations.AsNoTracking().FirstOrDefaultAsync();
+            if (existingOrg != null)
+            {
+                organizationId = existingOrg.Id;
+            }
+            else
+            {
+                var defaultOrg = new Organization
+                {
+                    Name = "Default Organization",
+                    Location = new Point(21.0122, 52.2297) { SRID = 4326 }
+                };
+                _context.Organizations.Add(defaultOrg);
+                await _context.SaveChangesAsync();
+                organizationId = defaultOrg.Id;
+            }
+        }
+
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(createUserDto.Password);
 
         var user = new User
         {
+            OrganizationId = organizationId,
             Name = createUserDto.Name,
             Surname = createUserDto.Surname,
             Email = normalizedEmail,
@@ -74,6 +101,11 @@ public class UserService : IUserService
         if (user == null)
         {
             return null;
+        }
+
+        if (updateUserDto.OrganizationId.HasValue && updateUserDto.OrganizationId.Value > 0)
+        {
+            user.OrganizationId = updateUserDto.OrganizationId.Value;
         }
 
         user.Name = updateUserDto.Name;
@@ -128,6 +160,7 @@ public class UserService : IUserService
     private static UserDto MapToDto(User user) => new()
     {
         Id = user.Id,
+        OrganizationId = user.OrganizationId,
         Name = user.Name,
         Surname = user.Surname,
         Email = user.Email,

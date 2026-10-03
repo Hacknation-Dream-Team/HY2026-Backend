@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NetTopologySuite.Geometries;
 
 namespace HY2026_Backend.Models;
 
@@ -18,12 +17,6 @@ public class RouteModel
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
-    [Column("start_p", TypeName = "geography(Point, 4326)")]
-    public Point StartP { get; set; } = null!;
-
-    [Column("end_p", TypeName = "geography(Point, 4326)")]
-    public Point EndP { get; set; } = null!;
-
-    [Column("looking_for")]
-    public string? LookingFor { get; set; }
+    public ICollection<RoutePoint> Points { get; set; } = new List<RoutePoint>();
+    public ICollection<Advertisement> Advertisements { get; set; } = new List<Advertisement>();
 }

@@ -11,6 +11,12 @@ public class User
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
+    [Column("organization_id")]
+    public long OrganizationId { get; set; }
+
+    [ForeignKey(nameof(OrganizationId))]
+    public Organization? Organization { get; set; }
+
     [Required]
     [Column("name")]
     public string Name { get; set; } = string.Empty;
@@ -35,5 +41,5 @@ public class User
 
     public ICollection<UserCar> UserCars { get; set; } = new List<UserCar>();
     public ICollection<RouteModel> Routes { get; set; } = new List<RouteModel>();
-    public ICollection<Advertisement> Advertisements { get; set; } = new List<Advertisement>();
+    public ICollection<RideRequest> RideRequests { get; set; } = new List<RideRequest>();
 }

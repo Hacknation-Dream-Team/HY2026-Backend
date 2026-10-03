@@ -22,30 +22,39 @@ public class RouteService : IRouteService
             throw new ArgumentException("Route must contain at least 2 points (start and end).");
         }
 
-        var startDto = createRouteDto.Points.First();
-        var endDto = createRouteDto.Points.Last();
-
-        var startPoint = new Point(startDto.Longitude, startDto.Latitude) { SRID = 4326 };
-        var endPoint = new Point(endDto.Longitude, endDto.Latitude) { SRID = 4326 };
-
         var route = new RouteModel
         {
-            UserId = userId,
-            StartP = startPoint,
-            EndP = endPoint,
-            LookingFor = createRouteDto.LookingFor
+            UserId = userId
         };
 
         _context.Routes.Add(route);
         await _context.SaveChangesAsync();
 
-        return MapToDto(route);
+        short seq = 0;
+        foreach (var pointDto in createRouteDto.Points)
+        {
+            var point = new Point(pointDto.Longitude, pointDto.Latitude) { SRID = 4326 };
+            _context.RoutePoints.Add(new RoutePoint
+            {
+                RouteId = route.Id,
+                Seq = seq++,
+                Point = point
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        var result = await GetRouteByIdAsync(route.Id)
+            ?? throw new InvalidOperationException("Failed to retrieve created route.");
+        result.LookingFor = createRouteDto.LookingFor;
+        return result;
     }
 
     public async Task<RouteDto?> GetRouteByIdAsync(long id)
     {
         var route = await _context.Routes
             .AsNoTracking()
+            .Include(r => r.Points)
             .FirstOrDefaultAsync(r => r.Id == id);
 
         return route == null ? null : MapToDto(route);
@@ -53,7 +62,10 @@ public class RouteService : IRouteService
 
     public async Task<IEnumerable<RouteDto>> GetAllRoutesAsync(long? userId = null)
     {
-        var query = _context.Routes.AsNoTracking();
+        var query = _context.Routes
+            .AsNoTracking()
+            .Include(r => r.Points)
+            .AsQueryable();
 
         if (userId.HasValue)
         {
@@ -66,7 +78,10 @@ public class RouteService : IRouteService
 
     public async Task<bool> DeleteRouteAsync(long id, long userId)
     {
-        var route = await _context.Routes.FindAsync(id);
+        var route = await _context.Routes
+            .Include(r => r.Points)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
         if (route == null)
         {
             return false;
@@ -77,20 +92,29 @@ public class RouteService : IRouteService
             throw new UnauthorizedAccessException("You do not have permission to delete this route.");
         }
 
+        _context.RoutePoints.RemoveRange(route.Points);
         _context.Routes.Remove(route);
         await _context.SaveChangesAsync();
         return true;
     }
 
-    private static RouteDto MapToDto(RouteModel route) => new()
+    private static RouteDto MapToDto(RouteModel route)
     {
-        Id = route.Id,
-        UserId = route.UserId,
-        Points = new List<PointDto>
+        var points = route.Points
+            .OrderBy(p => p.Seq)
+            .Select(p => new PointDto
+            {
+                Latitude = p.Point.Y,
+                Longitude = p.Point.X
+            })
+            .ToList();
+
+        return new RouteDto
         {
-            new PointDto { Latitude = route.StartP.Y, Longitude = route.StartP.X },
-            new PointDto { Latitude = route.EndP.Y, Longitude = route.EndP.X }
-        },
-        LookingFor = route.LookingFor
-    };
+            Id = route.Id,
+            UserId = route.UserId,
+            Points = points,
+            LookingFor = null
+        };
+    }
 }
