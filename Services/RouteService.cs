@@ -17,7 +17,8 @@ public class RouteService : IRouteService
 
     public async Task<RouteDto> CreateRouteAsync(long userId, CreateRouteDto createRouteDto)
     {
-        if (createRouteDto.Points == null || createRouteDto.Points.Count < 2)
+        var pointsList = createRouteDto.GetResolvedPoints();
+        if (pointsList.Count < 2)
         {
             throw new ArgumentException("Route must contain at least 2 points (start and end).");
         }
@@ -31,7 +32,7 @@ public class RouteService : IRouteService
         await _context.SaveChangesAsync();
 
         short seq = 0;
-        foreach (var pointDto in createRouteDto.Points)
+        foreach (var pointDto in pointsList)
         {
             var point = new Point(pointDto.Longitude, pointDto.Latitude) { SRID = 4326 };
             _context.RoutePoints.Add(new RoutePoint

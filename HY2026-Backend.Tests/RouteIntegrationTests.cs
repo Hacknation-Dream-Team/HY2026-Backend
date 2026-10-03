@@ -98,4 +98,52 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var getDeletedResponse = await client.GetAsync($"/api/routes/{routeId}");
         Assert.Equal(HttpStatusCode.NotFound, getDeletedResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task CreateRoute_WithMiddlePoints_Succeeds()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var uniqueEmail = $"middlepoint.user.{Guid.NewGuid():N}@example.com";
+        var password = "SecurePassword123!";
+
+        var registerDto = new CreateUserDto
+        {
+            Name = "MiddlePoint",
+            Surname = "Tester",
+            Email = uniqueEmail,
+            Password = password
+        };
+
+        var registerResponse = await client.PostAsJsonAsync("/api/users", registerDto);
+        var authResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponseDto>();
+        Assert.NotNull(authResult);
+
+        var authenticatedClient = _factory.CreateClient();
+        authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResult.Token);
+
+        // Create route with start, 2 middle points, and end
+        var createRouteDto = new CreateRouteDto
+        {
+            StartPoint = new PointDto { Latitude = 52.2297, Longitude = 21.0122 }, // Warsaw
+            MiddlePoints = new List<PointDto>
+            {
+                new PointDto { Latitude = 51.7592, Longitude = 19.4560 }, // Lodz
+                new PointDto { Latitude = 51.1100, Longitude = 17.0325 }  // Wroclaw
+            },
+            EndPoint = new PointDto { Latitude = 50.0647, Longitude = 19.9450 }   // Krakow
+        };
+
+        var createResponse = await authenticatedClient.PostAsJsonAsync("/api/routes", createRouteDto);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var createdRoute = await createResponse.Content.ReadFromJsonAsync<RouteDto>();
+        Assert.NotNull(createdRoute);
+        Assert.Equal(4, createdRoute.Points.Count);
+        Assert.NotNull(createdRoute.StartPoint);
+        Assert.NotNull(createdRoute.EndPoint);
+        Assert.Equal(2, createdRoute.MiddlePoints.Count);
+        Assert.Equal(51.7592, createdRoute.MiddlePoints[0].Latitude, 4);
+        Assert.Equal(51.1100, createdRoute.MiddlePoints[1].Latitude, 4);
+    }
 }
