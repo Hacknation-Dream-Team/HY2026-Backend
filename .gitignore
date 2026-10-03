@@ -1,0 +1,37 @@
+## Build outputs
+[Bb]in/
+[Oo]bj/
+out/
+[LLEe]og/
+[Ll]ogs/
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## IDE specific files
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+
+## Test results
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+
+## OS generated files
+.DS_Store
+Thumbs.db
+
+## Environment & secrets
+*.env
+*.local
+
+schema.md
