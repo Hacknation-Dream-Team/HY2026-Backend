@@ -39,6 +39,7 @@ builder.Services.AddScoped<IAdvertisementService, AdvertisementService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IRideService, RideService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] 
@@ -77,6 +78,42 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS role text DEFAULT 'User';");
+
+        // Seed default Admin user if admin@system.local does not exist
+        var adminEmail = "admin@system.local";
+        var existingAdmin = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+        if (existingAdmin == null)
+        {
+            var defaultOrg = await dbContext.Organizations.FirstOrDefaultAsync();
+            if (defaultOrg == null)
+            {
+                defaultOrg = new Organization
+                {
+                    Name = "Default Organization",
+                    Location = new NetTopologySuite.Geometries.Point(21.0122, 52.2297) { SRID = 4326 }
+                };
+                dbContext.Organizations.Add(defaultOrg);
+                await dbContext.SaveChangesAsync();
+            }
+
+            var adminUser = new User
+            {
+                OrganizationId = defaultOrg.Id,
+                Name = "Admin",
+                Surname = "System",
+                Email = adminEmail,
+                Password = BCrypt.Net.BCrypt.HashPassword("AdminHaslo123!"),
+                Role = HY2026_Backend.Helpers.UserRoles.Admin
+            };
+            dbContext.Users.Add(adminUser);
+            await dbContext.SaveChangesAsync();
+        }
+        else if (existingAdmin.Role != HY2026_Backend.Helpers.UserRoles.Admin)
+        {
+            existingAdmin.Role = HY2026_Backend.Helpers.UserRoles.Admin;
+            await dbContext.SaveChangesAsync();
+        }
     }
     catch (Exception ex)
     {
@@ -92,6 +129,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

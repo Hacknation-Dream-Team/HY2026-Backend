@@ -7,4 +7,6 @@ public interface IOrganizationService
     Task<OrganizationDto> CreateOrganizationAsync(CreateOrganizationDto createDto);
     Task<IEnumerable<OrganizationDto>> GetAllOrganizationsAsync();
     Task<OrganizationDto?> GetOrganizationAsync(long id);
+    Task<OrganizationDto?> UpdateOrganizationAsync(long id, UpdateOrganizationDto updateDto);
+    Task<bool> DeleteOrganizationAsync(long id);
 }

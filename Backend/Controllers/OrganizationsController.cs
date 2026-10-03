@@ -17,11 +17,33 @@ public class OrganizationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<OrganizationDto>> CreateOrganization(CreateOrganizationDto createDto)
     {
         var org = await _organizationService.CreateOrganizationAsync(createDto);
         return CreatedAtAction(nameof(GetOrganization), new { id = org.Id }, org);
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<OrganizationDto>> UpdateOrganization(long id, UpdateOrganizationDto updateDto)
+    {
+        var updated = await _organizationService.UpdateOrganizationAsync(id, updateDto);
+        if (updated == null)
+            return NotFound(new { message = $"Organization with ID {id} was not found." });
+
+        return Ok(updated);
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteOrganization(long id)
+    {
+        var result = await _organizationService.DeleteOrganizationAsync(id);
+        if (!result)
+            return NotFound(new { message = $"Organization with ID {id} was not found." });
+
+        return NoContent();
     }
 
     [HttpGet]

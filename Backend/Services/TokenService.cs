@@ -31,7 +31,8 @@ public class TokenService : ITokenService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, $"{user.Name} {user.Surname}")
+            new Claim(ClaimTypes.Name, $"{user.Name} {user.Surname}"),
+            new Claim(ClaimTypes.Role, string.IsNullOrWhiteSpace(user.Role) ? HY2026_Backend.Helpers.UserRoles.User : user.Role)
         };
 
         var tokenDescriptor = new SecurityTokenDescriptor

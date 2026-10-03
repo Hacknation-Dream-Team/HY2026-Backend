@@ -79,8 +79,18 @@ Wszystkie endpointy mają prefiks `/api`. Autoryzacja odbywa się za pomocą tok
 
 ### Usunięcie konta
 - **`DELETE /api/users/{id}`** `[Wymaga JWT]`
-- **Opis:** Usuwa konto użytkownika. Użytkownik może usunąć tylko własne konto.
+- **Opis:** Usuwa konto użytkownika. Użytkownik może usunąć własne konto, a administrator dowolne konto.
 - **Odpowiedź (204 No Content)**
+
+### Zmiana roli użytkownika
+- **`PUT /api/users/{id}/role`** `[Wymaga JWT (Admin)]`
+- **Opis:** Zmienia rolę użytkownika (np. `"Admin"` lub `"User"`).
+- **Body:**
+  ```json
+  {
+    "role": "Admin"
+  }
+  ```
 
 ---
 
@@ -234,10 +244,32 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **`DELETE /api/cars/{id}`** `[Wymaga JWT]` - Usunięcie pojazdu użytkownika o podanym ID.
 
 ### Organizacje (`/api/organizations`)
-- **`POST /api/organizations`** `[Wymaga JWT]` - Utworzenie nowej organizacji.
+- **`POST /api/organizations`** `[Wymaga JWT (Admin)]` - Utworzenie nowej organizacji (tylko Administrator).
+- **`PUT /api/organizations/{id}`** `[Wymaga JWT (Admin)]` - Edycja nazwy i lokalizacji organizacji (tylko Administrator).
+- **`DELETE /api/organizations/{id}`** `[Wymaga JWT (Admin)]` - Usunięcie organizacji (tylko Administrator).
 - **`GET /api/organizations`** - Pobranie listy wszystkich dostępnych organizacji (nie wymaga autoryzacji).
 - **`GET /api/organizations/{id}`** - Pobranie konkretnej organizacji po jej ID (nie wymaga autoryzacji).
 
-### Przejazdy (dziennik zrealizowanych lub planowanych przejazdów na bazie aktywnego matcha) (`/api/rides`)
+### Przejazdy (`/api/rides`)
 - **`POST /api/rides`** `[Wymaga JWT]` - Utworzenie planowanego/zrealizowanego przejazdu dla danego Match ID z przypisaną konkretną datą.
-- **`GET /api/rides`** `[Wymaga JWT]` - Pobranie listy zrealizowanych i planowanych przejazdów, w których zalogowany użytkownik uczestniczy (albo jako kierowca, albo jako pasażer).
+- **`GET /api/rides`** `[Wymaga JWT]` - Pobranie listy zrealizowanych i planowanych przejazdów, w których zalogowany użytkownik uczestniczy.
+
+---
+
+## 5. Panel Administratora (`/api/admin`) `[Wymaga JWT (Admin)]`
+
+Wszystkie endpointy w tym dziale wymagają autoryzacji kontem o roli `Admin`.
+
+- **`GET /api/admin/stats`** - Zwraca podsumowanie statystyk w systemie (liczba użytkowników, adminów, organizacji, tras, ogłoszeń, zapytań, matchy, przejazdów, modeli aut).
+- **`GET /api/admin/users`** - Pobiera pełną listę wszystkich użytkowników w systemie wraz z przypisanymi rolami.
+- **`PUT /api/admin/users/{id}/role`** - Pozwala administratorowi zmienić rolę wskazanego użytkownika (`"Admin"` / `"User"`).
+- **`GET /api/admin/organizations`** - Pobiera listę wszystkich organizacji w systemie.
+- **`POST /api/admin/organizations`** - Tworzy nową organizację.
+- **`PUT /api/admin/organizations/{id}`** - Edytuje nazwę oraz współrzędne geograficzne (lokalizację biura) organizacji.
+- **`DELETE /api/admin/organizations/{id}`** - Usuwa organizację po ID.
+- **`GET /api/admin/routes`** - Podgląd wszystkich tras utworzonych w całym systemie.
+- **`GET /api/admin/advertisements`** - Podgląd wszystkich ogłoszeń kierowców w całym systemie.
+- **`GET /api/admin/riderequests`** - Podgląd wszystkich zapytań pasażerów w całym systemie.
+- **`GET /api/admin/matches`** - Podgląd wszystkich matchy w całym systemie.
+- **`GET /api/admin/rides`** - Podgląd dziennika wszystkich zrealizowanych i planowanych przejazdów w całym systemie.
+

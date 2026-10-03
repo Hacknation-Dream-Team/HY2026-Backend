@@ -90,7 +90,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Updates user details (Requires authentication; users can only edit their own profile).
+    /// Updates user details (Requires authentication; users can edit their own profile, admins can edit any profile).
     /// </summary>
     [HttpPut("{id:long}")]
     [Authorize]
@@ -106,7 +106,8 @@ public class UsersController : ControllerBase
             return Unauthorized();
         }
 
-        if (currentUserId.Value != id)
+        var isAdmin = User.IsInRole(HY2026_Backend.Helpers.UserRoles.Admin);
+        if (currentUserId.Value != id && !isAdmin)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have permission to edit another user's profile." });
         }
@@ -120,7 +121,26 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes a user account (Requires authentication; users can only delete their own profile).
+    /// Updates a user's role (Requires Admin role).
+    /// </summary>
+    [HttpPut("{id:long}/role")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserDto>> UpdateRole(long id, [FromBody] UpdateUserRoleDto dto)
+    {
+        var updatedUser = await _userService.UpdateUserRoleAsync(id, dto.Role);
+        if (updatedUser == null)
+        {
+            return NotFound(new { message = $"User with ID {id} was not found." });
+        }
+        return Ok(updatedUser);
+    }
+
+    /// <summary>
+    /// Deletes a user account (Requires authentication; users can delete their own profile, admins can delete any account).
     /// </summary>
     [HttpDelete("{id:long}")]
     [Authorize]
@@ -136,7 +156,8 @@ public class UsersController : ControllerBase
             return Unauthorized();
         }
 
-        if (currentUserId.Value != id)
+        var isAdmin = User.IsInRole(HY2026_Backend.Helpers.UserRoles.Admin);
+        if (currentUserId.Value != id && !isAdmin)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have permission to delete another user's account." });
         }

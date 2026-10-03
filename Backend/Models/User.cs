@@ -39,6 +39,10 @@ public class User
     [Column("profile_img")]
     public string? ProfileImg { get; set; }
 
+    [Required]
+    [Column("role")]
+    public string Role { get; set; } = "User";
+
     public ICollection<UserCar> UserCars { get; set; } = new List<UserCar>();
     public ICollection<RouteModel> Routes { get; set; } = new List<RouteModel>();
     public ICollection<RideRequest> RideRequests { get; set; } = new List<RideRequest>();

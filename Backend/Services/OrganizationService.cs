@@ -45,6 +45,30 @@ public class OrganizationService : IOrganizationService
         return MapToDto(organization);
     }
 
+    public async Task<OrganizationDto?> UpdateOrganizationAsync(long id, UpdateOrganizationDto updateDto)
+    {
+        var organization = await _context.Organizations.FindAsync(id);
+        if (organization == null) return null;
+
+        var location = new Point(updateDto.Location.Longitude, updateDto.Location.Latitude) { SRID = 4326 };
+        organization.Name = updateDto.Name;
+        organization.Location = location;
+
+        await _context.SaveChangesAsync();
+
+        return MapToDto(organization);
+    }
+
+    public async Task<bool> DeleteOrganizationAsync(long id)
+    {
+        var organization = await _context.Organizations.FindAsync(id);
+        if (organization == null) return false;
+
+        _context.Organizations.Remove(organization);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     private static OrganizationDto MapToDto(Organization organization)
     {
         return new OrganizationDto

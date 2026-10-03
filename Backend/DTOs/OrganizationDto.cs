@@ -12,3 +12,9 @@ public class CreateOrganizationDto
     public string Name { get; set; } = string.Empty;
     public PointDto Location { get; set; } = null!;
 }
+
+public class UpdateOrganizationDto
+{
+    public string Name { get; set; } = string.Empty;
+    public PointDto Location { get; set; } = null!;
+}

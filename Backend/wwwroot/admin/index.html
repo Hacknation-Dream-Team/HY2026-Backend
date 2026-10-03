@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HY2026 Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-purple: #8b5cf6;
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    .header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .user-session {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-admin {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .badge-user {
+      background: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--card-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(139, 92, 246, 0.25);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff, var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      margin-bottom: 24px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.9rem;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.6px;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 500px;
+      padding: 28px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .form-group input {
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent-purple);
+    }
+
+    .login-container {
+      max-width: 450px;
+      margin: 80px auto;
+      text-align: center;
+    }
+
+    .login-box {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      padding: 36px;
+      border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-logo">HY</div>
+      <div class="brand-title">HY2026 Admin Panel</div>
+    </div>
+    <div class="user-session" id="sessionInfo">
+      <!-- Session details or login button -->
+    </div>
+  </header>
+
+  <!-- Login Section -->
+  <div id="loginSection" class="login-container">
+    <div class="login-box">
+      <h2 style="margin-bottom: 8px; font-weight: 800;">Logowanie Admina</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">Zaloguj się kontem administratora, aby uzyskać dostęp do panelu.</p>
+      
+      <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Admina</label>
+          <input type="email" id="loginEmail" value="admin@system.local" required />
+        </div>
+        <div class="form-group">
+          <label>Hasło</label>
+          <input type="password" id="loginPassword" value="AdminHaslo123!" required />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 14px; margin-top: 8px;">
+          Zaloguj się
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard Main View -->
+  <div id="mainDashboard" class="container" style="display: none;">
+    
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('stats')">📊 Dashboard & Statystyki</button>
+      <button class="tab-btn" onclick="switchTab('organizations')">🏢 Organizacje</button>
+      <button class="tab-btn" onclick="switchTab('users')">👥 Użytkownicy</button>
+      <button class="tab-btn" onclick="switchTab('routes')">🗺️ Trasy</button>
+      <button class="tab-btn" onclick="switchTab('advertisements')">🚗 Ogłoszenia</button>
+      <button class="tab-btn" onclick="switchTab('riderequests')">🙋 Zapytania</button>
+      <button class="tab-btn" onclick="switchTab('matches')">🤝 Matche & Przejazdy</button>
+    </nav>
+
+    <!-- TAB 1: STATS -->
+    <div id="tab-stats" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Użytkownicy</div>
+          <div class="stat-value" id="statUsers">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Administratorzy</div>
+          <div class="stat-value" id="statAdmins">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Organizacje</div>
+          <div class="stat-value" id="statOrgs">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Trasy</div>
+          <div class="stat-value" id="statRoutes">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ogłoszenia</div>
+          <div class="stat-value" id="statAds">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Zapytania</div>
+          <div class="stat-value" id="statReqs">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Matche</div>
+          <div class="stat-value" id="statMatches">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Przejazdy</div>
+          <div class="stat-value" id="statRides">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Szybkie Akcje Administratora</div>
+          <button class="btn btn-secondary btn-sm" onclick="loadAllData()">🔄 Odśwież dane</button>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="openOrgModal()">+ Dodaj Nową Organizację</button>
+          <button class="btn btn-secondary" onclick="switchTab('users')">Zarządzaj Użytkownikami</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: ORGANIZATIONS -->
+    <div id="tab-organizations" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Lista Organizacji w Systemie</div>
+          <button class="btn btn-primary btn-sm" onclick="openOrgModal()">+ Dodaj Organizację</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nazwa Organizacji</th>
+              <th>Szerokość (Lat)</th>
+              <th>Długość (Lng)</th>
+              <th>Akcje</th>
+            </tr>
+          </thead>
+          <tbody id="orgsTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: USERS -->
+    <div id="tab-users" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Lista Użytkowników Systemu</div>
+          <button class="btn btn-secondary btn-sm" onclick="loadUsers()">🔄 Odśwież</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Imię i Nazwisko</th>
+              <th>Email</th>
+              <th>Org ID</th>
+              <th>Telefon</th>
+              <th>Rola</th>
+              <th>Akcje Admina</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: ROUTES -->
+    <div id="tab-routes" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Wszystkie Trasy Kierowców</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Trasy</th>
+              <th>ID Kierowcy</th>
+              <th>Punkt Startowy</th>
+              <th>Punkt Docelowy</th>
+              <th>Liczba Przystanków</th>
+            </tr>
+          </thead>
+          <tbody id="routesTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: ADVERTISEMENTS -->
+    <div id="tab-advertisements" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Ogłoszenia Przejazdów</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Ogłoszenia</th>
+              <th>ID Trasy</th>
+              <th>Godzina Odjazdu</th>
+              <th>Miejsca</th>
+              <th>Cykliczne</th>
+              <th>Dni Tygodnia</th>
+            </tr>
+          </thead>
+          <tbody id="adsTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 6: RIDE REQUESTS -->
+    <div id="tab-riderequests" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Zapytania Pasażerów</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Zapytania</th>
+              <th>ID Pasażera</th>
+              <th>Start (Lat, Lng)</th>
+              <th>Meta (Lat, Lng)</th>
+              <th>Godzina Odjazdu</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reqsTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 7: MATCHES & RIDES -->
+    <div id="tab-matches" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Zestawienie Matchy</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Match</th>
+              <th>ID Ogłoszenia</th>
+              <th>ID Zapytania</th>
+              <th>Wsiadanie (Seq)</th>
+              <th>Wysiadanie (Seq)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="matchesTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Organizacji -->
+  <div id="orgModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 id="orgModalTitle" style="margin-bottom: 16px; font-weight: 700;">Dodaj Organizację</h3>
+      <input type="hidden" id="modalOrgId" />
+      <div class="form-group">
+        <label>Nazwa Organizacji</label>
+        <input type="text" id="modalOrgName" placeholder="np. Acme Corp" required />
+      </div>
+      <div class="form-group">
+        <label>Szerokość Geograficzna (Latitude / Y)</label>
+        <input type="number" step="any" id="modalOrgLat" placeholder="np. 52.2297" required />
+      </div>
+      <div class="form-group">
+        <label>Długość Geograficzna (Longitude / X)</label>
+        <input type="number" step="any" id="modalOrgLng" placeholder="np. 21.0122" required />
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px;">
+        <button class="btn btn-secondary" onclick="closeOrgModal()">Anuluj</button>
+        <button class="btn btn-primary" onclick="saveOrg()">Zapisz Organizację</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let jwtToken = localStorage.getItem('hy2026_admin_token') || '';
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (jwtToken) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorDiv = document.getElementById('loginError');
+
+      errorDiv.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (!response.ok) {
+          throw new Error('Nieprawidłowe dane logowania.');
+        }
+
+        const data = await response.json();
+        if (data.user && data.user.role !== 'Admin') {
+          throw new Error('Konto nie posiada uprawnień Administratora.');
+        }
+
+        jwtToken = data.token;
+        localStorage.setItem('hy2026_admin_token', jwtToken);
+        showDashboard();
+      } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.style.display = 'block';
+      }
+    });
+
+    function logout() {
+      jwtToken = '';
+      localStorage.removeItem('hy2026_admin_token');
+      showLogin();
+    }
+
+    function showLogin() {
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('mainDashboard').style.display = 'none';
+      document.getElementById('sessionInfo').innerHTML = '';
+    }
+
+    function showDashboard() {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('mainDashboard').style.display = 'block';
+      document.getElementById('sessionInfo').innerHTML = `
+        <span class="badge badge-admin">Administrator</span>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Wyloguj</button>
+      `;
+      loadAllData();
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    async function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      options.headers['Authorization'] = `Bearer ${jwtToken}`;
+      options.headers['Content-Type'] = options.headers['Content-Type'] || 'application/json';
+
+      const response = await fetch(url, options);
+      if (response.status === 401 || response.status === 403) {
+        alert('Brak uprawnień lub sesja wygasła.');
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return response;
+    }
+
+    async function loadAllData() {
+      loadStats();
+      loadOrganizations();
+      loadUsers();
+      loadRoutes();
+      loadAdvertisements();
+      loadRideRequests();
+      loadMatches();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await apiFetch('/api/admin/stats');
+        const stats = await res.json();
+        document.getElementById('statUsers').textContent = stats.totalUsers;
+        document.getElementById('statAdmins').textContent = stats.totalAdmins;
+        document.getElementById('statOrgs').textContent = stats.totalOrganizations;
+        document.getElementById('statRoutes').textContent = stats.totalRoutes;
+        document.getElementById('statAds').textContent = stats.totalAdvertisements;
+        document.getElementById('statReqs').textContent = stats.totalRideRequests;
+        document.getElementById('statMatches').textContent = stats.totalMatches;
+        document.getElementById('statRides').textContent = stats.totalRides;
+      } catch (e) {}
+    }
+
+    async function loadOrganizations() {
+      try {
+        const res = await apiFetch('/api/admin/organizations');
+        const orgs = await res.json();
+        const tbody = document.getElementById('orgsTableBody');
+        tbody.innerHTML = orgs.map(o => `
+          <tr>
+            <td>${o.id}</td>
+            <td><strong>${o.name}</strong></td>
+            <td>${o.location.latitude}</td>
+            <td>${o.location.longitude}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="editOrg(${o.id}, '${o.name}', ${o.location.latitude}, ${o.location.longitude})">Edytuj</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteOrg(${o.id})">Usuń</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadUsers() {
+      try {
+        const res = await apiFetch('/api/admin/users');
+        const users = await res.json();
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${u.name} ${u.surname}</td>
+            <td>${u.email}</td>
+            <td>${u.organizationId}</td>
+            <td>${u.phone || '-'}</td>
+            <td><span class="badge ${u.role === 'Admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="toggleUserRole(${u.id}, '${u.role}')">
+                Zmień na ${u.role === 'Admin' ? 'User' : 'Admin'}
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Usuń</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadRoutes() {
+      try {
+        const res = await apiFetch('/api/admin/routes');
+        const routes = await res.json();
+        const tbody = document.getElementById('routesTableBody');
+        tbody.innerHTML = routes.map(r => `
+          <tr>
+            <td>${r.id}</td>
+            <td>User #${r.userId}</td>
+            <td>${r.startPoint ? `${r.startPoint.latitude}, ${r.startPoint.longitude}` : '-'}</td>
+            <td>${r.endPoint ? `${r.endPoint.latitude}, ${r.endPoint.longitude}` : '-'}</td>
+            <td>${r.points ? r.points.length : 0} pkt</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadAdvertisements() {
+      try {
+        const res = await apiFetch('/api/admin/advertisements');
+        const ads = await res.json();
+        const tbody = document.getElementById('adsTableBody');
+        tbody.innerHTML = ads.map(a => `
+          <tr>
+            <td>${a.id}</td>
+            <td>Route #${a.routeId}</td>
+            <td>${a.departureTime}</td>
+            <td>${a.seats}</td>
+            <td>${a.isRecurring ? 'Tak' : 'Nie'}</td>
+            <td>${a.daysOfWeek ? a.daysOfWeek.join(', ') : '-'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadRideRequests() {
+      try {
+        const res = await apiFetch('/api/admin/riderequests');
+        const reqs = await res.json();
+        const tbody = document.getElementById('reqsTableBody');
+        tbody.innerHTML = reqs.map(r => `
+          <tr>
+            <td>${r.id}</td>
+            <td>User #${r.userId}</td>
+            <td>${r.startP.latitude.toFixed(4)}, ${r.startP.longitude.toFixed(4)}</td>
+            <td>${r.endP.latitude.toFixed(4)}, ${r.endP.longitude.toFixed(4)}</td>
+            <td>${r.departureTime}</td>
+            <td>${r.isActive ? 'Aktywne' : 'Nieaktywne'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadMatches() {
+      try {
+        const res = await apiFetch('/api/admin/matches');
+        const matches = await res.json();
+        const tbody = document.getElementById('matchesTableBody');
+        tbody.innerHTML = matches.map(m => `
+          <tr>
+            <td>${m.id}</td>
+            <td>Ad #${m.advertisementId}</td>
+            <td>Req #${m.requestId}</td>
+            <td>${m.pickupSeq}</td>
+            <td>${m.dropoffSeq}</td>
+            <td><span class="badge badge-user">${m.status}</span></td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    // Modal & Org Actions
+    function openOrgModal() {
+      document.getElementById('orgModalTitle').textContent = 'Dodaj Nową Organizację';
+      document.getElementById('modalOrgId').value = '';
+      document.getElementById('modalOrgName').value = '';
+      document.getElementById('modalOrgLat').value = '52.2297';
+      document.getElementById('modalOrgLng').value = '21.0122';
+      document.getElementById('orgModal').classList.add('active');
+    }
+
+    function editOrg(id, name, lat, lng) {
+      document.getElementById('orgModalTitle').textContent = `Edytuj Organizację #${id}`;
+      document.getElementById('modalOrgId').value = id;
+      document.getElementById('modalOrgName').value = name;
+      document.getElementById('modalOrgLat').value = lat;
+      document.getElementById('modalOrgLng').value = lng;
+      document.getElementById('orgModal').classList.add('active');
+    }
+
+    function closeOrgModal() {
+      document.getElementById('orgModal').classList.remove('active');
+    }
+
+    async function saveOrg() {
+      const id = document.getElementById('modalOrgId').value;
+      const name = document.getElementById('modalOrgName').value;
+      const latitude = parseFloat(document.getElementById('modalOrgLat').value);
+      const longitude = parseFloat(document.getElementById('modalOrgLng').value);
+
+      if (!name || isNaN(latitude) || isNaN(longitude)) {
+        alert('Wypełnij wszystkie pola poprawnie.');
+        return;
+      }
+
+      const body = { name, location: { latitude, longitude } };
+      const url = id ? `/api/admin/organizations/${id}` : '/api/admin/organizations';
+      const method = id ? 'PUT' : 'POST';
+
+      try {
+        const res = await apiFetch(url, { method, body: JSON.stringify(body) });
+        if (res.ok) {
+          closeOrgModal();
+          loadOrganizations();
+          loadStats();
+        }
+      } catch (e) {}
+    }
+
+    async function deleteOrg(id) {
+      if (!confirm(`Czy na pewno chcesz usunąć organizację #${id}?`)) return;
+      try {
+        const res = await apiFetch(`/api/admin/organizations/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadOrganizations();
+          loadStats();
+        }
+      } catch (e) {}
+    }
+
+    // User Actions
+    async function toggleUserRole(userId, currentRole) {
+      const newRole = currentRole === 'Admin' ? 'User' : 'Admin';
+      if (!confirm(`Czy zmienić rolę użytkownika #${userId} na ${newRole}?`)) return;
+
+      try {
+        const res = await apiFetch(`/api/admin/users/${userId}/role`, {
+          method: 'PUT',
+          body: JSON.stringify({ role: newRole })
+        });
+        if (res.ok) {
+          loadUsers();
+          loadStats();
+        }
+      } catch (e) {}
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm(`Czy na pewno chcesz usunąć użytkownika #${userId}?`)) return;
+      try {
+        const res = await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadUsers();
+          loadStats();
+        }
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>

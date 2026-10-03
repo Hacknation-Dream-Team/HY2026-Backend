@@ -78,6 +78,7 @@ public class UserService : IUserService
             Name = createUserDto.Name,
             Surname = createUserDto.Surname,
             Email = normalizedEmail,
+            Role = HY2026_Backend.Helpers.UserRoles.User,
             Phone = createUserDto.Phone,
             Password = passwordHash,
             ProfileImg = createUserDto.ProfileImg
@@ -113,6 +114,20 @@ public class UserService : IUserService
         user.Phone = updateUserDto.Phone;
         user.ProfileImg = updateUserDto.ProfileImg;
 
+        await _context.SaveChangesAsync();
+
+        return MapToDto(user);
+    }
+
+    public async Task<UserDto?> UpdateUserRoleAsync(long id, string role)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+        {
+            return null;
+        }
+
+        user.Role = role;
         await _context.SaveChangesAsync();
 
         return MapToDto(user);
@@ -164,6 +179,7 @@ public class UserService : IUserService
         Name = user.Name,
         Surname = user.Surname,
         Email = user.Email,
+        Role = string.IsNullOrWhiteSpace(user.Role) ? HY2026_Backend.Helpers.UserRoles.User : user.Role,
         Phone = user.Phone,
         ProfileImg = user.ProfileImg
     };
