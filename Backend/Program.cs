@@ -1,6 +1,7 @@
 using System.Text;
 using HY2026_Backend.Data;
 using HY2026_Backend.Helpers;
+using HY2026_Backend.Hubs;
 using HY2026_Backend.Models;
 using HY2026_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -9,8 +10,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers & OpenAPI
+// Controllers, SignalR & OpenAPI
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 
 // Connection string setup (environment variable DATABASE_URL takes priority)
@@ -44,6 +46,9 @@ builder.Services.AddScoped<ICarService, CarService>();
 builder.Services.AddScoped<IRideEventService, RideEventService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 
+// Singleton for In-Memory Chat
+builder.Services.AddSingleton<IChatService, InMemoryChatService>();
+
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] 
     ?? "SuperSecretKeyForHY2026BackendMustBeAtLeast32BytesLong!";
@@ -67,6 +72,19 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtAudience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromMinutes(1)
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -150,6 +168,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
 

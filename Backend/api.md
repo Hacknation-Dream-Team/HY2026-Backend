@@ -291,3 +291,54 @@ Wszystkie endpointy w tym dziale wymagają autoryzacji kontem o roli `Admin`.
 - **`GET /api/admin/matches`** - Podgląd wszystkich matchy w całym systemie.
 - **`GET /api/admin/rides`** - Podgląd dziennika wszystkich zrealizowanych i planowanych przejazdów w całym systemie.
 
+---
+
+## 6. Moduł Czatu (`/api/chat` oraz SignalR Hub `/hubs/chat`) `[Wymaga JWT]`
+
+Wiadomości czatu są przechowywane in-memory (Singleton). System obsługuje komunikację za pomocą REST API oraz SignalR do powiadomień i wiadomości w czasie rzeczywistym.
+
+### Endpoints REST API (`/api/chat`)
+
+- **`GET /api/chat/conversations`**
+  - **Opis:** Zwraca listę podsumowania aktywnych konwersacji zalogowanego użytkownika (ostatnia wiadomość, data, liczba nieprzeczytanych wiadomości oraz dane rozmówcy).
+  - **Odpowiedź (200 OK):** Array obiektów `ConversationSummaryDto`.
+
+- **`GET /api/chat/messages/{otherUserId}`**
+  - **Opis:** Pobiera pełną historię wiadomości z użytkownikiem o wskazanym ID.
+  - **Odpowiedź (200 OK):** Array obiektów `ChatMessageDto`.
+
+- **`POST /api/chat/messages`**
+  - **Opis:** Wysyła wiadomość do innego użytkownika. Powoduje także natychmiastowe rozgłoszenie przez SignalR do odbiorcy.
+  - **Body:**
+    ```json
+    {
+      "recipientId": 2,
+      "content": "Cześć! O której wyjeżdżamy?"
+    }
+    ```
+  - **Odpowiedź (200 OK):** Zwraca utworzony obiekt `ChatMessageDto`.
+
+- **`POST /api/chat/read/{otherUserId}`**
+  - **Opis:** Oznacza wiadomości otrzymane od podanego użytkownika jako przeczytane. Powiadamia nadawcę przez SignalR.
+  - **Odpowiedź (200 OK):** `{ "message": "Messages marked as read." }`
+
+- **`GET /api/chat/unread-count`**
+  - **Opis:** Zwraca łączną liczbę nieprzeczytanych wiadomości dla zalogowanego użytkownika (do badge'a / ikony powiadomień).
+  - **Odpowiedź (200 OK):** `{ "totalUnreadCount": 3 }`
+
+### Hub SignalR (`/hubs/chat`)
+
+Dla połączeń WebSocket SignalR token JWT należy przekazać w query stringu:
+`ws://<host>/hubs/chat?access_token=<token_jwt>`
+
+#### Metody wywoływane przez klienta (Client -> Hub):
+- **`SendMessage(recipientId: long, content: string)`** - wysyła wiadomość.
+- **`MarkAsRead(otherUserId: long)`** - oznacza wiadomości jako przeczytane.
+
+#### Zdarzenia odbierane przez klienta (Hub -> Client):
+- **`ReceiveMessage(message: ChatMessageDto)`** - nowa odebrana wiadomość (otwarte okno czatu).
+- **`NewMessageNotification(message: ChatMessageDto)`** - powiadomienie o nowej wiadomości (toasty, badge).
+- **`MessageSent(message: ChatMessageDto)`** - potwierdzenie wysłania wiadomości (dla nadawcy).
+- **`MessagesRead(readByUserId: long)`** - informacja, że odbiorca przeczytał Twoje wiadomości.
+
+
