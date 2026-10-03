@@ -21,11 +21,12 @@ var parsedConnectionString = ConnectionStringHelper.ParseConnectionString(rawCon
 
 // DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(parsedConnectionString));
+    options.UseNpgsql(parsedConnectionString, o => o.UseNetTopologySuite()));
 
 // Dependency Injection
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRouteService, RouteService>();
 
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] 
