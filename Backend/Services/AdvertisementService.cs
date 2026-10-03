@@ -32,6 +32,16 @@ public class AdvertisementService : IAdvertisementService
             {
                 throw new InvalidOperationException("Specified car was not found or does not belong to the user.");
             }
+
+            if (createDto.Seats > userCar.PassengerSeats)
+            {
+                throw new InvalidOperationException($"Seats ({createDto.Seats}) cannot exceed the car's passenger seats ({userCar.PassengerSeats}).");
+            }
+        }
+
+        if (createDto.Seats <= 0)
+        {
+            throw new InvalidOperationException("Seats must be greater than 0.");
         }
 
         // Check for schedule overlaps with existing active advertisements of this driver on the same direction/route

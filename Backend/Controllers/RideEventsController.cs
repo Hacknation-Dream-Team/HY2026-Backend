@@ -44,4 +44,35 @@ public class RideEventsController : ControllerBase
         var events = await _rideEventService.GetEventsForAdvertisementAsync(advertisementId, userId);
         return Ok(events);
     }
+
+    /// <summary>
+    /// Current state of cancellations (ride_status view) for an advertisement, optionally for one date.
+    /// </summary>
+    [HttpGet("status/advertisement/{advertisementId:long}")]
+    public async Task<ActionResult<IEnumerable<RideStatusDto>>> GetRideStatus(long advertisementId, [FromQuery] DateOnly? date)
+    {
+        var result = await _rideEventService.GetRideStatusAsync(advertisementId, date);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Whether the passenger of a match rides on the given date (accepted, scheduled day, not cancelled).
+    /// </summary>
+    [HttpGet("riding/match/{matchId:long}")]
+    public async Task<ActionResult<PassengerRidingDto>> IsRiding(long matchId, [FromQuery] DateOnly date)
+    {
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            return Ok(await _rideEventService.IsPassengerRidingAsync(matchId, date, userId));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }

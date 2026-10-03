@@ -15,4 +15,6 @@ public class UserDto
     public string? ProfileImg { get; set; }
     public string? HomeAddress { get; set; }
     public PointDto? HomeLocation { get; set; }
+    /// <summary>Set when the account has a problem, e.g. no home location (no matches will be returned).</summary>
+    public string? Warning { get; set; }
 }

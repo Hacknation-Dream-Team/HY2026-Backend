@@ -8,6 +8,7 @@ public interface IUserService
     Task<UserDto?> GetUserByIdAsync(long id);
     Task<AuthResponseDto> CreateUserAsync(CreateUserDto createUserDto);
     Task<UserDto?> UpdateUserAsync(long id, UpdateUserDto updateUserDto);
+    Task<UserDto?> UpdateHomeAddressAsync(long id, UpdateHomeAddressDto dto);
     Task<UserDto?> UpdateUserRoleAsync(long id, string role);
     Task<bool> DeleteUserAsync(long id);
     Task<AuthResponseDto?> AuthenticateAsync(LoginDto loginDto);

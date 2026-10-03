@@ -21,6 +21,8 @@ public class AppDbContext : DbContext
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<RideEvent> RideEvents => Set<RideEvent>();
     public DbSet<MatchResultDto> MatchResults => Set<MatchResultDto>();
+    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
+    public DbSet<RideStatus> RideStatuses => Set<RideStatus>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +69,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MatchResultDto>(entity =>
         {
             entity.HasNoKey();
+        });
+
+        modelBuilder.Entity<RouteStop>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView("route_stops");
+        });
+
+        modelBuilder.Entity<RideStatus>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView("ride_status");
         });
     }
 }

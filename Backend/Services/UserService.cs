@@ -129,6 +129,21 @@ public class UserService : IUserService
         return MapToDto(user);
     }
 
+    public async Task<UserDto?> UpdateHomeAddressAsync(long id, UpdateHomeAddressDto dto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+        {
+            return null;
+        }
+
+        user.HomeAddress = dto.HomeAddress.Trim();
+        user.HomeLocation = new Point(dto.HomeLocation.Longitude, dto.HomeLocation.Latitude) { SRID = 4326 };
+        await _context.SaveChangesAsync();
+
+        return MapToDto(user);
+    }
+
     public async Task<UserDto?> UpdateUserRoleAsync(long id, string role)
     {
         var user = await _context.Users.FindAsync(id);
@@ -194,6 +209,7 @@ public class UserService : IUserService
         Gender = user.Gender,
         ProfileImg = user.ProfileImg,
         HomeAddress = user.HomeAddress,
-        HomeLocation = user.HomeLocation == null ? null : new PointDto { Latitude = user.HomeLocation.Y, Longitude = user.HomeLocation.X }
+        HomeLocation = user.HomeLocation == null ? null : new PointDto { Latitude = user.HomeLocation.Y, Longitude = user.HomeLocation.X },
+        Warning = user.HomeLocation == null ? "Home address is not set; you will not receive any matches until you set it." : null
     };
 }

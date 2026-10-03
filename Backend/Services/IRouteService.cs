@@ -8,4 +8,5 @@ public interface IRouteService
     Task<RouteDto?> GetRouteByIdAsync(long id);
     Task<IEnumerable<RouteDto>> GetAllRoutesAsync(long? userId = null);
     Task<bool> DeleteRouteAsync(long id, long userId);
+    Task<IEnumerable<RouteStopDto>?> GetRouteStopsAsync(long routeId);
 }

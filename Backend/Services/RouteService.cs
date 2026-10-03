@@ -104,6 +104,27 @@ public class RouteService : IRouteService
         return true;
     }
 
+    public async Task<IEnumerable<RouteStopDto>?> GetRouteStopsAsync(long routeId)
+    {
+        if (!await _context.Routes.AnyAsync(r => r.Id == routeId))
+        {
+            return null;
+        }
+
+        var stops = await _context.RouteStops
+            .AsNoTracking()
+            .Where(s => s.RouteId == routeId)
+            .OrderBy(s => s.Seq)
+            .ToListAsync();
+
+        return stops.Select(s => new RouteStopDto
+        {
+            RouteId = s.RouteId,
+            Seq = s.Seq,
+            Point = new PointDto { Latitude = s.Point.Y, Longitude = s.Point.X }
+        });
+    }
+
     private static RouteDto MapToDto(RouteModel route)
     {
         var points = route.Points

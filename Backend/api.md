@@ -55,7 +55,12 @@ Wszystkie endpointy mają prefiks `/api`. Autoryzacja odbywa się za pomocą tok
 ### Mój profil
 - **`GET /api/users/me`** `[Wymaga JWT]`
 - **Opis:** Zwraca profil aktualnie zalogowanego użytkownika.
-- **Odpowiedź (200 OK):** Obiekt użytkownika (`UserDto`).
+- **Odpowiedź (200 OK):** Obiekt użytkownika (`UserDto`). Pole `warning` jest ustawione, gdy brak adresu domowego (użytkownik nie dostanie matchy).
+
+### Zmiana adresu domowego
+- **`PUT /api/users/me/home-address`** `[Wymaga JWT]`
+- **Body:** `{ "homeAddress": "ul. Prosta 1, Warszawa", "homeLocation": { "latitude": 52.23, "longitude": 21.01 } }`
+- **Odpowiedź (200 OK):** Zaktualizowany `UserDto`. Trasy nie wymagają zmian (widok `route_stops` bierze adres z użytkownika).
 
 ### Pobranie listy użytkowników
 - **`GET /api/users`**
@@ -164,6 +169,11 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **Opis:** Usuwa trasę o podanym ID. Użytkownik może usunąć tylko własną trasę.
 - **Odpowiedź (204 No Content)**
 
+### Przystanki trasy (widok `route_stops`)
+- **`GET /api/routes/{id}/stops`**
+- **Opis:** Pełna lista przystanków: `seq 0` = start, potem punkty pośrednie, ostatni = meta. Wartości `seq` są używane jako `pickupSeq`/`dropoffSeq` w matchach.
+- **Odpowiedź (200 OK):** `[ { "routeId": 10, "seq": 0, "point": { "latitude": 52.2, "longitude": 21.0 } }, ... ]`; 404 gdy trasa nie istnieje.
+
 ---
 
 ## 3. Dopasowania i Matche (`/api/matches`)
@@ -175,6 +185,7 @@ Wymagane są **minimum 2 punkty** (start i meta).
   - `requestId` (`long`, opcjonalny) – ID zapytania w tabeli `ride_requests`.
   - `maxDistanceMeters` (`int`, opcjonalny, domyślnie `500`) – maksymalny promień od przystanków w metrach.
   - `timeWindowMinutes` (`int`, opcjonalny, domyślnie `15`) – tolerancja czasu odjazdu w minutach.
+- **Błędy (400):** brak aktywnego zapytania, zapytanie cudze/nieistniejące, brak adresu domowego użytkownika. Wyniki o kierunku innym niż zapytanie są odfiltrowywane.
 - **Odpowiedź (200 OK):**
   ```json
   [
@@ -203,6 +214,7 @@ Wymagane są **minimum 2 punkty** (start i meta).
     "dropoffSeq": 3
   }
   ```
+- **Walidacje (400):** `pickupSeq < dropoffSeq`; oba `seq` muszą istnieć w `route_stops` trasy ogłoszenia; kierunek trasy = kierunek zapytania; ten sam oddział; kierowca ≠ pasażer; aktywne ogłoszenie i zapytanie; pasażer ma adres domowy; brak duplikatu matcha. 403 dla cudzego zapytania.
 - **Odpowiedź (201 Created):**
   ```json
   {
@@ -221,7 +233,8 @@ Wymagane są **minimum 2 punkty** (start i meta).
 
 ### Zmiana statusu matcha (Akceptacja / Odmowa)
 - **`PUT /api/matches/{id}/status`** `[Wymaga JWT]`
-- **Body:** `"Accepted"` (lub `"Rejected"`, `"Cancelled"`, `"Pending"`)
+- **Body:** `"Accepted"` | `"Rejected"` | `"Cancelled"`
+- **Reguły:** akceptować/odrzucać może tylko kierowca (403 dla pasażera); pasażer może tylko anulować (`Cancelled`); nie można ustawić `Pending` ani zmienić anulowanego matcha (400); akceptacja niemożliwa, gdy liczba zaakceptowanych matchy osiągnęła `advertisements.seats` (400).
 - **Odpowiedź (200 OK):** Zaktualizowany obiekt `MatchDto`.
 
 ---
@@ -235,7 +248,7 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **`DELETE /api/riderequests/{id}`** `[Wymaga JWT]` - Usunięcie zapytania o przejazd po ID (dla zalogowanego użytkownika).
 
 ### Ogłoszenia - Kierowca (`/api/advertisements`)
-- **`POST /api/advertisements`** `[Wymaga JWT]` - Utworzenie nowego ogłoszenia przez kierowcę na wcześniej zdefiniowanej trasie.
+- **`POST /api/advertisements`** `[Wymaga JWT]` - Utworzenie nowego ogłoszenia przez kierowcę na wcześniej zdefiniowanej trasie. `seats` > 0 i nie więcej niż `passengerSeats` wskazanego auta.
 - **`GET /api/advertisements`** `[Wymaga JWT]` - Pobranie ogłoszeń zalogowanego użytkownika.
 - **`GET /api/advertisements/{id}`** `[Wymaga JWT]` - Pobranie ogłoszenia po ID (dla zalogowanego użytkownika).
 - **`DELETE /api/advertisements/{id}`** `[Wymaga JWT]` - Usunięcie ogłoszenia po ID (dla zalogowanego użytkownika).
@@ -253,9 +266,11 @@ Wymagane są **minimum 2 punkty** (start i meta).
 - **`GET /api/organizations`** - Pobranie listy wszystkich dostępnych organizacji (nie wymaga autoryzacji).
 - **`GET /api/organizations/{id}`** - Pobranie konkretnej organizacji po jej ID (nie wymaga autoryzacji).
 
-### Przejazdy (`/api/rides`)
-- **`POST /api/rides`** `[Wymaga JWT]` - Utworzenie planowanego/zrealizowanego przejazdu dla danego Match ID z przypisaną konkretną datą.
-- **`GET /api/rides`** `[Wymaga JWT]` - Pobranie listy zrealizowanych i planowanych przejazdów, w których zalogowany użytkownik uczestniczy.
+### Odwołania dni (`/api/rideevents`) `[Wymaga JWT]`
+- **`POST /api/rideevents`** - Dopisuje zdarzenie `Cancelled`/`Restored` (body: `advertisementId`, `matchId` (null = cały kurs, tylko kierowca), `rideDate`, `event`). `rideDate` musi wypadać w dzień z `daysOfWeek` ogłoszenia.
+- **`GET /api/rideevents/advertisement/{advertisementId}`** - Pełny dziennik zdarzeń ogłoszenia.
+- **`GET /api/rideevents/status/advertisement/{advertisementId}?date=YYYY-MM-DD`** - Aktualny stan odwołań (widok `ride_status`), `date` opcjonalne.
+- **`GET /api/rideevents/riding/match/{matchId}?date=YYYY-MM-DD`** - Czy pasażer jedzie danego dnia: `{ matchId, advertisementId, rideDate, isRiding, reason }`. Tylko uczestnicy matcha (403 dla innych).
 
 ---
 

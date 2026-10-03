@@ -61,6 +61,22 @@ public class RoutesController : ControllerBase
     }
 
     /// <summary>
+    /// Returns full route stops (route_stops view): seq 0 = start, intermediate points, last = destination.
+    /// </summary>
+    [HttpGet("{id:long}/stops")]
+    [ProducesResponseType(typeof(IEnumerable<RouteStopDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<RouteStopDto>>> GetStops(long id)
+    {
+        var stops = await _routeService.GetRouteStopsAsync(id);
+        if (stops == null)
+        {
+            return NotFound(new { message = $"Route with ID {id} was not found." });
+        }
+        return Ok(stops);
+    }
+
+    /// <summary>
     /// Gets all routes (optionally filtered by user ID).
     /// </summary>
     [HttpGet]
