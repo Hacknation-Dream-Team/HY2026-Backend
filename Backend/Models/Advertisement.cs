@@ -29,6 +29,9 @@ public class Advertisement
     [Column("departure_time")]
     public TimeOnly DepartureTime { get; set; }
 
+    [Column("estimated_arrival_time")]
+    public TimeOnly EstimatedArrivalTime { get; set; }
+
     [Column("days_of_week")]
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
 

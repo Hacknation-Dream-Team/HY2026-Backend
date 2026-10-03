@@ -19,6 +19,7 @@ public class RideService : IRideService
         var match = await _context.Matches
             .Include(m => m.Advertisement)
                 .ThenInclude(a => a!.Route)
+                    .ThenInclude(r => r!.Points)
             .Include(m => m.Request)
             .FirstOrDefaultAsync(m => m.Id == createDto.MatchId);
 
@@ -27,6 +28,38 @@ public class RideService : IRideService
 
         if (match.Advertisement!.Route!.UserId != userId && match.Request!.UserId != userId)
             throw new InvalidOperationException("User is not part of this match.");
+
+        var driverId = match.Advertisement.Route.UserId;
+        var ad = match.Advertisement;
+
+        var newStart = ad.DepartureTime;
+        var newEnd = ad.EstimatedArrivalTime != default
+            ? ad.EstimatedArrivalTime
+            : ad.DepartureTime.AddMinutes(AdvertisementService.CalculateRouteDurationMinutes(ad.Route));
+
+        // Check for overlapping rides for the same driver on the target date
+        var existingRides = await _context.Rides
+            .Include(r => r.Match)
+                .ThenInclude(m => m!.Advertisement)
+                    .ThenInclude(a => a!.Route)
+                        .ThenInclude(rt => rt!.Points)
+            .Where(r => r.RideDate == createDto.RideDate && r.Match!.Advertisement!.Route!.UserId == driverId)
+            .ToListAsync();
+
+        foreach (var existingRide in existingRides)
+        {
+            var existingAd = existingRide.Match!.Advertisement!;
+            var existingStart = existingAd.DepartureTime;
+            var existingEnd = existingAd.EstimatedArrivalTime != default
+                ? existingAd.EstimatedArrivalTime
+                : existingAd.DepartureTime.AddMinutes(AdvertisementService.CalculateRouteDurationMinutes(existingAd.Route));
+
+            if (AdvertisementService.DoTimeRangesOverlap(newStart, newEnd, existingStart, existingEnd))
+            {
+                throw new InvalidOperationException(
+                    $"Driver already has a ride scheduled during this time window ({existingStart:HH:mm} - {existingEnd:HH:mm}) on {createDto.RideDate:yyyy-MM-dd}.");
+            }
+        }
 
         var ride = new Ride
         {

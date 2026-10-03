@@ -9,6 +9,7 @@ public class AdvertisementDto
     public long? UsersCarId { get; set; }
     public short Seats { get; set; }
     public TimeOnly DepartureTime { get; set; }
+    public TimeOnly EstimatedArrivalTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
     public bool IsRecurring { get; set; }
     public bool IsActive { get; set; }
@@ -21,6 +22,8 @@ public class CreateAdvertisementDto
     public long? UsersCarId { get; set; }
     public short Seats { get; set; }
     public TimeOnly DepartureTime { get; set; }
+    public TimeOnly? EstimatedArrivalTime { get; set; }
+    public int? EstimatedDurationMinutes { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
     public bool IsRecurring { get; set; }
     public string? Description { get; set; }

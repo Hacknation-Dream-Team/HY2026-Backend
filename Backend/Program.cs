@@ -88,6 +88,7 @@ using (var scope = app.Services.CreateScope())
                 END IF; 
             END $$;");
         await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender user_gender;");
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE advertisements ADD COLUMN IF NOT EXISTS estimated_arrival_time time without time zone DEFAULT '00:00:00';");
 
         // Seed default Admin user if admin@system.local does not exist
         var adminEmail = "admin@system.local";
