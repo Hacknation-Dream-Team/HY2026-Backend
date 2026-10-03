@@ -62,6 +62,7 @@ public class UserService : IUserService
                 var defaultOrg = new Organization
                 {
                     Name = "Default Organization",
+                    Address = "Default Address",
                     Location = new Point(21.0122, 52.2297) { SRID = 4326 }
                 };
                 _context.Organizations.Add(defaultOrg);
@@ -82,7 +83,9 @@ public class UserService : IUserService
             Phone = createUserDto.Phone,
             Gender = createUserDto.Gender,
             Password = passwordHash,
-            ProfileImg = createUserDto.ProfileImg
+            ProfileImg = createUserDto.ProfileImg,
+            HomeAddress = createUserDto.HomeAddress,
+            HomeLocation = createUserDto.HomeLocation == null ? null : new Point(createUserDto.HomeLocation.Longitude, createUserDto.HomeLocation.Latitude) { SRID = 4326 }
         };
 
         _context.Users.Add(user);
@@ -115,6 +118,11 @@ public class UserService : IUserService
         user.Phone = updateUserDto.Phone;
         user.Gender = updateUserDto.Gender;
         user.ProfileImg = updateUserDto.ProfileImg;
+        user.HomeAddress = updateUserDto.HomeAddress;
+        if (updateUserDto.HomeLocation != null)
+        {
+            user.HomeLocation = new Point(updateUserDto.HomeLocation.Longitude, updateUserDto.HomeLocation.Latitude) { SRID = 4326 };
+        }
 
         await _context.SaveChangesAsync();
 
@@ -184,6 +192,8 @@ public class UserService : IUserService
         Role = string.IsNullOrWhiteSpace(user.Role) ? HY2026_Backend.Helpers.UserRoles.User : user.Role,
         Phone = user.Phone,
         Gender = user.Gender,
-        ProfileImg = user.ProfileImg
+        ProfileImg = user.ProfileImg,
+        HomeAddress = user.HomeAddress,
+        HomeLocation = user.HomeLocation == null ? null : new PointDto { Latitude = user.HomeLocation.Y, Longitude = user.HomeLocation.X }
     };
 }

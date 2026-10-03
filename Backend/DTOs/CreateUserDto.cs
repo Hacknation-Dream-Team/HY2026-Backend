@@ -25,4 +25,8 @@ public class CreateUserDto
     public string Password { get; set; } = string.Empty;
 
     public string? ProfileImg { get; set; }
+
+    public string? HomeAddress { get; set; }
+
+    public PointDto? HomeLocation { get; set; }
 }

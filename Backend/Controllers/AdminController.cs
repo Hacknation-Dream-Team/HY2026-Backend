@@ -158,13 +158,13 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves all rides in the system.
+    /// Retrieves all ride events in the system.
     /// </summary>
-    [HttpGet("rides")]
-    [ProducesResponseType(typeof(IEnumerable<RideDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<RideDto>>> GetAllRides()
+    [HttpGet("rideevents")]
+    [ProducesResponseType(typeof(IEnumerable<RideEventDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<RideEventDto>>> GetAllRideEvents()
     {
-        var rides = await _adminService.GetAllRidesAsync();
-        return Ok(rides);
+        var events = await _adminService.GetAllRideEventsAsync();
+        return Ok(events);
     }
 }

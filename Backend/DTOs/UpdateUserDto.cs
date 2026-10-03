@@ -18,4 +18,8 @@ public class UpdateUserDto
     public UserGender? Gender { get; set; }
 
     public string? ProfileImg { get; set; }
+
+    public string? HomeAddress { get; set; }
+
+    public PointDto? HomeLocation { get; set; }
 }

@@ -38,7 +38,7 @@ public class RoutesController : ControllerBase
             var route = await _routeService.CreateRouteAsync(currentUserId.Value, dto);
             return CreatedAtAction(nameof(GetById), new { id = route.Id }, route);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
         {
             return BadRequest(new { message = ex.Message });
         }

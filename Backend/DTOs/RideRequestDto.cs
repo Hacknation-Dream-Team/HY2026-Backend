@@ -6,8 +6,7 @@ public class RideRequestDto
 {
     public long Id { get; set; }
     public long UserId { get; set; }
-    public PointDto StartP { get; set; } = null!;
-    public PointDto EndP { get; set; } = null!;
+    public TripDirection Direction { get; set; }
     public TimeOnly DepartureTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
     public bool IsActive { get; set; }
@@ -15,8 +14,7 @@ public class RideRequestDto
 
 public class CreateRideRequestDto
 {
-    public PointDto StartP { get; set; } = null!;
-    public PointDto EndP { get; set; } = null!;
+    public TripDirection Direction { get; set; } = TripDirection.ToWork;
     public TimeOnly DepartureTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
 }

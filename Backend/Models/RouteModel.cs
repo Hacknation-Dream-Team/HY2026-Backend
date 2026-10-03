@@ -17,6 +17,9 @@ public class RouteModel
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
+    [Column("direction")]
+    public TripDirection Direction { get; set; }
+
     public ICollection<RoutePoint> Points { get; set; } = new List<RoutePoint>();
     public ICollection<Advertisement> Advertisements { get; set; } = new List<Advertisement>();
 }

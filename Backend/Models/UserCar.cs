@@ -11,15 +11,27 @@ public class UserCar
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
-    [Column("u_id")]
+    [Column("user_id")]
     public long UserId { get; set; }
 
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
-    [Column("brand_id")]
-    public long BrandId { get; set; }
+    [Column("car_model_id")]
+    public long? CarModelId { get; set; }
 
-    [ForeignKey(nameof(BrandId))]
+    [ForeignKey(nameof(CarModelId))]
     public CarModel? CarModel { get; set; }
+
+    [Column("model_name")]
+    public string? ModelName { get; set; }
+
+    [Column("plate")]
+    public string? Plate { get; set; }
+
+    [Column("color")]
+    public string? Color { get; set; }
+
+    [Column("passenger_seats")]
+    public short PassengerSeats { get; set; }
 }

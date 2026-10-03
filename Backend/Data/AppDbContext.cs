@@ -19,7 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Advertisement> Advertisements => Set<Advertisement>();
     public DbSet<RideRequest> RideRequests => Set<RideRequest>();
     public DbSet<Match> Matches => Set<Match>();
-    public DbSet<Ride> Rides => Set<Ride>();
+    public DbSet<RideEvent> RideEvents => Set<RideEvent>();
     public DbSet<MatchResultDto> MatchResults => Set<MatchResultDto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -27,12 +27,32 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.HasPostgresEnum<Weekday>("weekday");
+        modelBuilder.HasPostgresEnum<TripDirection>("trip_direction");
         modelBuilder.HasPostgresEnum<MatchStatus>("match_status");
+        modelBuilder.HasPostgresEnum<RideEventType>("ride_event_type");
         modelBuilder.HasPostgresEnum<UserGender>("user_gender");
 
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<UserCar>(entity =>
+        {
+            entity.HasOne(uc => uc.CarModel)
+                  .WithMany()
+                  .HasForeignKey(uc => uc.CarModelId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RouteModel>(entity =>
+        {
+            entity.HasIndex(r => new { r.UserId, r.Direction }).IsUnique();
+        });
+
+        modelBuilder.Entity<RideRequest>(entity =>
+        {
+            entity.HasIndex(rr => new { rr.UserId, rr.Direction }).IsUnique();
         });
 
         modelBuilder.Entity<RoutePoint>(entity =>
@@ -42,11 +62,6 @@ public class AppDbContext : DbContext
                   .WithMany(r => r.Points)
                   .HasForeignKey(rp => rp.RouteId)
                   .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<Ride>(entity =>
-        {
-            entity.HasIndex(r => new { r.MatchId, r.RideDate }).IsUnique();
         });
 
         modelBuilder.Entity<MatchResultDto>(entity =>

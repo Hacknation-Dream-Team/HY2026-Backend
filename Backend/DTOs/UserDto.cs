@@ -13,4 +13,6 @@ public class UserDto
     public string? Phone { get; set; }
     public UserGender? Gender { get; set; }
     public string? ProfileImg { get; set; }
+    public string? HomeAddress { get; set; }
+    public PointDto? HomeLocation { get; set; }
 }

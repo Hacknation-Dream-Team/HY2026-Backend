@@ -1,7 +1,6 @@
 using HY2026_Backend.Data;
 using HY2026_Backend.DTOs;
 using HY2026_Backend.Helpers;
-using HY2026_Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace HY2026_Backend.Services;
@@ -26,7 +25,7 @@ public class AdminService : IAdminService
             TotalAdvertisements = await _context.Advertisements.CountAsync(),
             TotalRideRequests = await _context.RideRequests.CountAsync(),
             TotalMatches = await _context.Matches.CountAsync(),
-            TotalRides = await _context.Rides.CountAsync(),
+            TotalRideEvents = await _context.RideEvents.CountAsync(),
             TotalCarModels = await _context.CarModels.CountAsync()
         };
     }
@@ -43,7 +42,10 @@ public class AdminService : IAdminService
             Email = u.Email,
             Role = string.IsNullOrWhiteSpace(u.Role) ? UserRoles.User : u.Role,
             Phone = u.Phone,
-            ProfileImg = u.ProfileImg
+            Gender = u.Gender,
+            ProfileImg = u.ProfileImg,
+            HomeAddress = u.HomeAddress,
+            HomeLocation = u.HomeLocation == null ? null : new PointDto { Latitude = u.HomeLocation.Y, Longitude = u.HomeLocation.X }
         });
     }
 
@@ -54,6 +56,7 @@ public class AdminService : IAdminService
         {
             Id = o.Id,
             Name = o.Name,
+            Address = o.Address,
             Location = new PointDto { Latitude = o.Location.Y, Longitude = o.Location.X }
         });
     }
@@ -69,6 +72,7 @@ public class AdminService : IAdminService
         {
             Id = r.Id,
             UserId = r.UserId,
+            Direction = r.Direction,
             Points = r.Points.OrderBy(p => p.Seq).Select(p => new PointDto
             {
                 Latitude = p.Point.Y,
@@ -88,7 +92,6 @@ public class AdminService : IAdminService
             Seats = a.Seats,
             DepartureTime = a.DepartureTime,
             DaysOfWeek = a.DaysOfWeek,
-            IsRecurring = a.IsRecurring,
             IsActive = a.IsActive,
             Description = a.Description
         });
@@ -101,8 +104,7 @@ public class AdminService : IAdminService
         {
             Id = r.Id,
             UserId = r.UserId,
-            StartP = new PointDto { Latitude = r.StartP.Y, Longitude = r.StartP.X },
-            EndP = new PointDto { Latitude = r.EndP.Y, Longitude = r.EndP.X },
+            Direction = r.Direction,
             DepartureTime = r.DepartureTime,
             DaysOfWeek = r.DaysOfWeek,
             IsActive = r.IsActive
@@ -123,14 +125,18 @@ public class AdminService : IAdminService
         });
     }
 
-    public async Task<IEnumerable<RideDto>> GetAllRidesAsync()
+    public async Task<IEnumerable<RideEventDto>> GetAllRideEventsAsync()
     {
-        var rides = await _context.Rides.AsNoTracking().ToListAsync();
-        return rides.Select(r => new RideDto
+        var events = await _context.RideEvents.AsNoTracking().ToListAsync();
+        return events.Select(e => new RideEventDto
         {
-            Id = r.Id,
-            MatchId = r.MatchId,
-            RideDate = r.RideDate
+            Id = e.Id,
+            AdvertisementId = e.AdvertisementId,
+            MatchId = e.MatchId,
+            RideDate = e.RideDate,
+            Event = e.Event,
+            CreatedBy = e.CreatedBy,
+            CreatedAt = e.CreatedAt
         });
     }
 }

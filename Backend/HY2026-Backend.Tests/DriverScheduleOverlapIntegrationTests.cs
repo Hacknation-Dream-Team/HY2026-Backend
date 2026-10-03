@@ -41,72 +41,64 @@ public class DriverScheduleOverlapIntegrationTests : IClassFixture<WebApplicatio
         // Create Route for Driver 1
         var routeRes1 = await clientDriver1.PostAsJsonAsync("/api/routes", new CreateRouteDto
         {
-            Points = new List<PointDto>
+            Direction = TripDirection.ToWork,
+            MiddlePoints = new List<PointDto>
             {
-                new PointDto { Latitude = 52.2297, Longitude = 21.0122 },
                 new PointDto { Latitude = 52.1800, Longitude = 21.0200 }
             }
         });
         var route1 = await routeRes1.Content.ReadFromJsonAsync<RouteDto>();
         Assert.NotNull(route1);
 
-        // 1. Create first advertisement (08:00 to 09:00 on Monday)
+        // 1. Create first advertisement (08:00 on Monday)
         var adDto1 = new CreateAdvertisementDto
         {
             RouteId = route1.Id,
             Seats = 3,
             DepartureTime = new TimeOnly(8, 0),
-            EstimatedArrivalTime = new TimeOnly(9, 0),
-            DaysOfWeek = new[] { Weekday.Mon },
-            IsRecurring = true
+            DaysOfWeek = new[] { Weekday.Mon }
         };
 
         var adRes1 = await clientDriver1.PostAsJsonAsync("/api/advertisements", adDto1);
         Assert.Equal(HttpStatusCode.Created, adRes1.StatusCode);
 
-        // 2. Attempt to create overlapping advertisement for Driver 1 (08:30 to 09:30 on Monday) -> SHOULD FAIL
+        // 2. Attempt to create duplicate advertisement for Driver 1 at 08:00 on Monday -> SHOULD FAIL
         var adDtoOverlap = new CreateAdvertisementDto
         {
             RouteId = route1.Id,
             Seats = 3,
-            DepartureTime = new TimeOnly(8, 30),
-            EstimatedArrivalTime = new TimeOnly(9, 30),
-            DaysOfWeek = new[] { Weekday.Mon },
-            IsRecurring = true
+            DepartureTime = new TimeOnly(8, 0),
+            DaysOfWeek = new[] { Weekday.Mon }
         };
 
         var adResOverlap = await clientDriver1.PostAsJsonAsync("/api/advertisements", adDtoOverlap);
         Assert.Equal(HttpStatusCode.BadRequest, adResOverlap.StatusCode);
 
-        // 3. Create non-overlapping advertisement for Driver 1 (10:00 to 11:00 on Monday) -> SHOULD SUCCEED
+        // 3. Create non-overlapping advertisement for Driver 1 (10:00 on Monday) -> SHOULD SUCCEED
         var adDtoNonOverlapTime = new CreateAdvertisementDto
         {
             RouteId = route1.Id,
             Seats = 3,
             DepartureTime = new TimeOnly(10, 0),
-            EstimatedArrivalTime = new TimeOnly(11, 0),
-            DaysOfWeek = new[] { Weekday.Mon },
-            IsRecurring = true
+            DaysOfWeek = new[] { Weekday.Mon }
         };
 
         var adResNonOverlapTime = await clientDriver1.PostAsJsonAsync("/api/advertisements", adDtoNonOverlapTime);
         Assert.Equal(HttpStatusCode.Created, adResNonOverlapTime.StatusCode);
 
-        // 4. Create advertisement for Driver 1 on a different day (08:30 to 09:30 on Tuesday) -> SHOULD SUCCEED
+        // 4. Create advertisement for Driver 1 on a different day (08:00 on Tuesday) -> SHOULD SUCCEED
         var adDtoNonOverlapDay = new CreateAdvertisementDto
         {
             RouteId = route1.Id,
             Seats = 3,
-            DepartureTime = new TimeOnly(8, 30),
-            EstimatedArrivalTime = new TimeOnly(9, 30),
-            DaysOfWeek = new[] { Weekday.Tue },
-            IsRecurring = true
+            DepartureTime = new TimeOnly(8, 0),
+            DaysOfWeek = new[] { Weekday.Tue }
         };
 
         var adResNonOverlapDay = await clientDriver1.PostAsJsonAsync("/api/advertisements", adDtoNonOverlapDay);
         Assert.Equal(HttpStatusCode.Created, adResNonOverlapDay.StatusCode);
 
-        // 5. Register Driver 2 and verify Driver 2 can create advertisement at 08:30 on Monday -> SHOULD SUCCEED
+        // 5. Register Driver 2 and verify Driver 2 can create advertisement at 08:00 on Monday -> SHOULD SUCCEED
         var regDriver2 = await client.PostAsJsonAsync("/api/users", new CreateUserDto
         {
             Name = "Driver",
@@ -122,9 +114,9 @@ public class DriverScheduleOverlapIntegrationTests : IClassFixture<WebApplicatio
 
         var routeRes2 = await clientDriver2.PostAsJsonAsync("/api/routes", new CreateRouteDto
         {
-            Points = new List<PointDto>
+            Direction = TripDirection.ToWork,
+            MiddlePoints = new List<PointDto>
             {
-                new PointDto { Latitude = 52.2297, Longitude = 21.0122 },
                 new PointDto { Latitude = 52.1800, Longitude = 21.0200 }
             }
         });
@@ -135,10 +127,8 @@ public class DriverScheduleOverlapIntegrationTests : IClassFixture<WebApplicatio
         {
             RouteId = route2.Id,
             Seats = 3,
-            DepartureTime = new TimeOnly(8, 30),
-            EstimatedArrivalTime = new TimeOnly(9, 30),
-            DaysOfWeek = new[] { Weekday.Mon },
-            IsRecurring = true
+            DepartureTime = new TimeOnly(8, 0),
+            DaysOfWeek = new[] { Weekday.Mon }
         };
 
         var adResDriver2 = await clientDriver2.PostAsJsonAsync("/api/advertisements", adDtoDriver2);

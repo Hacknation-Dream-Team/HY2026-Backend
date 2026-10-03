@@ -22,8 +22,15 @@ public class RideRequestsController : ControllerBase
     public async Task<ActionResult<RideRequestDto>> CreateRideRequest(CreateRideRequestDto createDto)
     {
         var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var request = await _rideRequestService.CreateRideRequestAsync(userId, createDto);
-        return CreatedAtAction(nameof(GetRideRequest), new { id = request.Id }, request);
+        try
+        {
+            var request = await _rideRequestService.CreateRideRequestAsync(userId, createDto);
+            return CreatedAtAction(nameof(GetRideRequest), new { id = request.Id }, request);
+        }
+        catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet]

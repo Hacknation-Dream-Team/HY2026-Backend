@@ -18,49 +18,34 @@ public class AdvertisementService : IAdvertisementService
     {
         // verify route belongs to user
         var route = await _context.Routes
-            .Include(r => r.Points)
             .FirstOrDefaultAsync(r => r.Id == createDto.RouteId && r.UserId == userId);
 
         if (route == null)
             throw new InvalidOperationException("Route not found or does not belong to the user.");
 
-        var departureTime = createDto.DepartureTime;
-        TimeOnly estimatedArrivalTime;
+        if (createDto.UsersCarId.HasValue)
+        {
+            var userCar = await _context.UserCars
+                .FirstOrDefaultAsync(uc => uc.Id == createDto.UsersCarId.Value && uc.UserId == userId);
 
-        if (createDto.EstimatedArrivalTime.HasValue)
-        {
-            estimatedArrivalTime = createDto.EstimatedArrivalTime.Value;
-        }
-        else if (createDto.EstimatedDurationMinutes.HasValue)
-        {
-            estimatedArrivalTime = departureTime.AddMinutes(createDto.EstimatedDurationMinutes.Value);
-        }
-        else
-        {
-            var durationMinutes = CalculateRouteDurationMinutes(route);
-            estimatedArrivalTime = departureTime.AddMinutes(durationMinutes);
+            if (userCar == null)
+            {
+                throw new InvalidOperationException("Specified car was not found or does not belong to the user.");
+            }
         }
 
-        // Check for schedule overlaps with existing active advertisements of this driver
+        // Check for schedule overlaps with existing active advertisements of this driver on the same direction/route
         var existingAds = await _context.Advertisements
             .Include(a => a.Route)
-                .ThenInclude(r => r!.Points)
-            .Where(a => a.IsActive && a.Route!.UserId == userId)
+            .Where(a => a.IsActive && a.Route!.UserId == userId && a.Route.Direction == route.Direction)
             .ToListAsync();
 
         foreach (var existingAd in existingAds)
         {
-            if (DoDaysOverlap(existingAd.DaysOfWeek, createDto.DaysOfWeek))
+            if (DoDaysOverlap(existingAd.DaysOfWeek, createDto.DaysOfWeek) && existingAd.DepartureTime == createDto.DepartureTime)
             {
-                var existingEstimatedArrival = existingAd.EstimatedArrivalTime != default
-                    ? existingAd.EstimatedArrivalTime
-                    : existingAd.DepartureTime.AddMinutes(CalculateRouteDurationMinutes(existingAd.Route!));
-
-                if (DoTimeRangesOverlap(departureTime, estimatedArrivalTime, existingAd.DepartureTime, existingEstimatedArrival))
-                {
-                    throw new InvalidOperationException(
-                        $"Driver already has a route scheduled during this time window ({existingAd.DepartureTime:HH:mm} - {existingEstimatedArrival:HH:mm}).");
-                }
+                throw new InvalidOperationException(
+                    $"Driver already has an active advertisement for this direction at {existingAd.DepartureTime:HH:mm}.");
             }
         }
 
@@ -70,9 +55,7 @@ public class AdvertisementService : IAdvertisementService
             UsersCarId = createDto.UsersCarId,
             Seats = createDto.Seats,
             DepartureTime = createDto.DepartureTime,
-            EstimatedArrivalTime = estimatedArrivalTime,
             DaysOfWeek = createDto.DaysOfWeek,
-            IsRecurring = createDto.IsRecurring,
             IsActive = true,
             Description = createDto.Description
         };
@@ -118,29 +101,6 @@ public class AdvertisementService : IAdvertisementService
         return true;
     }
 
-    public static int CalculateRouteDurationMinutes(RouteModel? route)
-    {
-        if (route?.Points == null || route.Points.Count < 2)
-        {
-            return 30; // default 30 minutes if route points are unspecified or fewer than 2
-        }
-
-        var sortedPoints = route.Points.OrderBy(p => p.Seq).ToList();
-        double totalDistanceKm = 0;
-
-        for (int i = 0; i < sortedPoints.Count - 1; i++)
-        {
-            var p1 = sortedPoints[i].Point;
-            var p2 = sortedPoints[i + 1].Point;
-            totalDistanceKm += HaversineDistanceKm(p1.Y, p1.X, p2.Y, p2.X);
-        }
-
-        // Average driving speed ~50 km/h
-        double durationHours = totalDistanceKm / 50.0;
-        int durationMinutes = (int)Math.Round(durationHours * 60.0);
-        return Math.Max(15, durationMinutes);
-    }
-
     public static bool DoDaysOverlap(Weekday[]? days1, Weekday[]? days2)
     {
         if (days1 == null || days1.Length == 0 || days2 == null || days2.Length == 0)
@@ -149,42 +109,6 @@ public class AdvertisementService : IAdvertisementService
         }
         return days1.Intersect(days2).Any();
     }
-
-    public static bool DoTimeRangesOverlap(TimeOnly start1, TimeOnly end1, TimeOnly start2, TimeOnly end2)
-    {
-        int s1 = start1.Hour * 60 + start1.Minute;
-        int e1 = end1.Hour * 60 + end1.Minute;
-        if (e1 <= s1) e1 += 1440;
-
-        int s2 = start2.Hour * 60 + start2.Minute;
-        int e2 = end2.Hour * 60 + end2.Minute;
-        if (e2 <= s2) e2 += 1440;
-
-        return IntervalsOverlap(s1, e1, s2, e2) ||
-               IntervalsOverlap(s1, e1, s2 + 1440, e2 + 1440) ||
-               IntervalsOverlap(s1 + 1440, e1 + 1440, s2, e2);
-    }
-
-    private static bool IntervalsOverlap(int s1, int e1, int s2, int e2)
-    {
-        return Math.Max(s1, s2) < Math.Min(e1, e2);
-    }
-
-    private static double HaversineDistanceKm(double lat1, double lon1, double lat2, double lon2)
-    {
-        const double r = 6371.0;
-        double dLat = ToRadians(lat2 - lat1);
-        double dLon = ToRadians(lon2 - lon1);
-
-        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                   Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                   Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-
-        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return r * c;
-    }
-
-    private static double ToRadians(double degrees) => degrees * (Math.PI / 180.0);
 
     private static AdvertisementDto MapToDto(Advertisement advertisement)
     {
@@ -195,9 +119,7 @@ public class AdvertisementService : IAdvertisementService
             UsersCarId = advertisement.UsersCarId,
             Seats = advertisement.Seats,
             DepartureTime = advertisement.DepartureTime,
-            EstimatedArrivalTime = advertisement.EstimatedArrivalTime,
             DaysOfWeek = advertisement.DaysOfWeek,
-            IsRecurring = advertisement.IsRecurring,
             IsActive = advertisement.IsActive,
             Description = advertisement.Description
         };

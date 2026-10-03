@@ -42,6 +42,12 @@ public class User
     [Column("profile_img")]
     public string? ProfileImg { get; set; }
 
+    [Column("home_address")]
+    public string? HomeAddress { get; set; }
+
+    [Column("home_location", TypeName = "geography(Point, 4326)")]
+    public NetTopologySuite.Geometries.Point? HomeLocation { get; set; }
+
     [Required]
     [Column("role")]
     public string Role { get; set; } = "User";

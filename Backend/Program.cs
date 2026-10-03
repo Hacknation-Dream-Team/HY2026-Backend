@@ -26,7 +26,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     {
         o.UseNetTopologySuite();
         o.MapEnum<Weekday>("weekday");
+        o.MapEnum<TripDirection>("trip_direction");
         o.MapEnum<MatchStatus>("match_status");
+        o.MapEnum<RideEventType>("ride_event_type");
         o.MapEnum<UserGender>("user_gender");
     }));
 
@@ -39,7 +41,7 @@ builder.Services.AddScoped<IRideRequestService, RideRequestService>();
 builder.Services.AddScoped<IAdvertisementService, AdvertisementService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ICarService, CarService>();
-builder.Services.AddScoped<IRideService, RideService>();
+builder.Services.AddScoped<IRideEventService, RideEventService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 
 // JWT Authentication Configuration
@@ -101,6 +103,7 @@ using (var scope = app.Services.CreateScope())
                 defaultOrg = new Organization
                 {
                     Name = "Default Organization",
+                    Address = "Default Address",
                     Location = new NetTopologySuite.Geometries.Point(21.0122, 52.2297) { SRID = 4326 }
                 };
                 dbContext.Organizations.Add(defaultOrg);

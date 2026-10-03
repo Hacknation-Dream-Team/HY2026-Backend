@@ -1,0 +1,82 @@
+# Memo dla backendu: baza po zmianach
+
+Szczegóły kolumn: `schema.md`. Diagram: `erd-draft.md`. Wdrożenie: wklej `schema.sql`, potem `seed.sql` (mock, hasło `haslo123`).
+
+## Co jest czym (ściąga)
+
+| tabela / obiekt | co to jest |
+|---|---|
+| `organizations` | oddział firmy z adresem i współrzędnymi |
+| `users` | user; należy do jednego oddziału; ma jeden adres domowy (`home_address` + `home_location`) |
+| `car_models` | słownik aut z EEA, tylko do odczytu (dropdown) |
+| `users_cars` | auto usera: model ze słownika **albo** wpisany ręcznie, tablica, kolor, miejsca |
+| `routes` | trasa kierowcy: max dwie, `to_work` i `to_home` |
+| `route_points` | przystanki **pośrednie** trasy (bez domu i biura) |
+| `route_stops` (widok) | pełna trasa: dom/biuro + przystanki, ponumerowane od 0 |
+| `advertisements` | post kierowcy na trasie: godzina wyjazdu, dni, ilu pasażerów, auto |
+| `ride_requests` | czego szuka pasażer: kierunek, godzina, dni (max jedno na kierunek) |
+| `matches` | pasażer dogadany z ogłoszeniem: gdzie wsiada/wysiada + status |
+| `ride_events` | dziennik odwołań konkretnych dni (tylko dopisywanie) |
+| `ride_status` (widok) | aktualny stan odwołań (ostatnie zdarzenie) |
+| `find_matches(request_id)` | funkcja: zwraca pasujące ogłoszenia dla zapytania pasażera |
+| `eea_raw`, `refresh_car_models()` | odświeżanie słownika aut; backendu nie dotyczy |
+
+## Co się zmieniło
+
+- `organizations.address`: nowa kolumna.
+- `users.home_address`, `users.home_location`: adres domowy (nazwa + współrzędne z frontu).
+- `users_cars`: `u_id` → **`user_id`**, `brand_id` → **`car_model_id`** (teraz może być NULL), nowe `model_name`, `plate`, `color`, `passenger_seats`.
+- `car_models.seats`: usunięte (miejsca są w aucie usera).
+- `routes.direction`: dwie trasy na kierowcę.
+- `route_points`: tylko przystanki pośrednie, `seq` od 1.
+- `advertisements.is_recurring`: usunięte (nie ma jednorazowych przejazdów).
+- `ride_requests`: bez `start_p` / `end_p`, za to `direction`. Skąd/dokąd = dom ↔ oddział usera.
+- `rides`: usunięte. Odbyte przejazdy da się później wyliczyć z matchy i `ride_events`.
+- `ride_events` + widok `ride_status`: nowe, do odwołań i powiadomień.
+
+## Typowe operacje
+
+**Ustawienia usera / zmiana adresu**
+`UPDATE users SET home_address = ..., home_location = ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography WHERE id = ...`
+Trasy nie trzeba ruszać, bo widok `route_stops` bierze adres stąd.
+
+**Kierowca dodaje trasę i ogłoszenie**
+1. `INSERT INTO routes (user_id, direction)`.
+2. Przystanki pośrednie: `INSERT INTO route_points (route_id, seq, point)`, `seq` = 1, 2, 3… w kolejności jazdy.
+3. `INSERT INTO advertisements (route_id, users_car_id, seats, departure_time, days_of_week, description)`.
+   Wcześniej sprawdź, czy kierowca nie ma już ogłoszenia na tej trasie z tą samą godziną i wspólnym dniem.
+
+**Pasażer szuka**
+1. `INSERT INTO ride_requests (user_id, direction, departure_time, days_of_week)`.
+2. `SELECT * FROM find_matches(<request_id>)` zwraca listę ogłoszeń z przystankami.
+3. Wybór pasażera: `INSERT INTO matches (advertisement_id, request_id, pickup_seq, dropoff_seq)` z wartościami z wyniku funkcji (status `pending`).
+
+**Kierowca akceptuje / odrzuca**
+`UPDATE matches SET status = 'accepted' | 'rejected' WHERE id = ...`
+Przy akceptacji sprawdź, czy zaakceptowanych nie będzie więcej niż `advertisements.seats`.
+
+**Odwołanie jednego dnia** (zawsze INSERT, nigdy UPDATE)
+- Kierowca odwołuje cały kurs: `INSERT INTO ride_events (advertisement_id, match_id, ride_date, event, created_by) VALUES (ad, NULL, '2026-10-08', 'cancelled', kierowca)`.
+- Pasażer się wypisuje: to samo z `match_id` = jego match.
+- Cofnięcie: nowy wiersz z `event = 'restored'`.
+- Każdy taki INSERT to dobry moment na powiadomienie na żywo do drugiej strony.
+
+**Czy pasażer jedzie danego dnia?**
+Nie jedzie, jeśli w `ride_status` dla tego dnia jest `cancelled` dla jego matcha albo dla całego kursu:
+```sql
+SELECT NOT EXISTS (
+  SELECT 1 FROM ride_status s
+  WHERE s.advertisement_id = :ad AND s.ride_date = :date AND s.event = 'cancelled'
+    AND (s.match_id IS NULL OR s.match_id = :match)
+) AS jedzie;
+```
+
+## C# (raz, przy konfiguracji)
+
+Zarejestruj enumy i PostGIS, inaczej odczyt się wywali. Gotowy kod jest w `schema.md`, sekcja "C# / Npgsql".
+Enumy: `weekday`, `trip_direction`, `match_status`, `ride_event_type`, `user_gender`.
+
+## Poza bazą (Wasza strona)
+
+Czat (in-memory), powiadomienia na żywo, szacowanie godzin na przystankach (front), blokada duplikatów ogłoszeń.
+Oceny: na razie nie robimy.

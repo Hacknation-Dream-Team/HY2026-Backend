@@ -17,22 +17,27 @@ public class RouteService : IRouteService
 
     public async Task<RouteDto> CreateRouteAsync(long userId, CreateRouteDto createRouteDto)
     {
-        var pointsList = createRouteDto.GetResolvedPoints();
-        if (pointsList.Count < 2)
+        var existingRoute = await _context.Routes
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.Direction == createRouteDto.Direction);
+
+        if (existingRoute != null)
         {
-            throw new ArgumentException("Route must contain at least 2 points (start and end).");
+            throw new InvalidOperationException($"Driver already has a route for direction '{createRouteDto.Direction}'.");
         }
+
+        var intermediatePoints = createRouteDto.GetIntermediatePoints();
 
         var route = new RouteModel
         {
-            UserId = userId
+            UserId = userId,
+            Direction = createRouteDto.Direction
         };
 
         _context.Routes.Add(route);
         await _context.SaveChangesAsync();
 
-        short seq = 0;
-        foreach (var pointDto in pointsList)
+        short seq = 1;
+        foreach (var pointDto in intermediatePoints)
         {
             var point = new Point(pointDto.Longitude, pointDto.Latitude) { SRID = 4326 };
             _context.RoutePoints.Add(new RoutePoint
@@ -114,6 +119,7 @@ public class RouteService : IRouteService
         {
             Id = route.Id,
             UserId = route.UserId,
+            Direction = route.Direction,
             Points = points,
             LookingFor = null
         };
