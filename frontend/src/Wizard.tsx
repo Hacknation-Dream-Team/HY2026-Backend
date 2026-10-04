@@ -1,5 +1,5 @@
-﻿import { useState } from 'react';
-import { CheckCircle2, ChevronRight, UserCircle2, Building2, MapPin, ArrowLeft, Loader2, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, ChevronRight, UserCircle2, Building2, MapPin, ArrowLeft, Loader2 } from 'lucide-react';
 import { api } from './api';
 
 import { LocationPicker } from './LocationPicker';
@@ -20,7 +20,7 @@ export function Wizard({ onComplete, onBack }: { onComplete: (user: any) => void
   // Step 2: Location Data
   const [organization, setOrganization] = useState('');
   const [homeAddress, setHomeAddress] = useState('');
-  const [homeCoords, setHomeCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [, setHomeCoords] = useState<{lat: number, lng: number} | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [locationErrors, setLocationErrors] = useState<string[]>([]);
 
@@ -59,7 +59,17 @@ export function Wizard({ onComplete, onBack }: { onComplete: (user: any) => void
       };
       
       const authData = await api.register(payload);
-      onComplete(authData.user);
+      localStorage.setItem('token', authData.token);
+      
+      const updatedUser = await api.updateHomeAddress({
+        homeAddress: homeAddress,
+        homeLocation: {
+           latitude: 50.06, // hardcoded if picker isn't used
+           longitude: 19.94
+        }
+      }, authData.token);
+
+      onComplete({ ...updatedUser, organizationName: organization, homeAddressText: homeAddress });
     } catch (e: any) {
       console.error(e);
       alert('BĹ‚Ä…d rejestracji: ' + e.message);

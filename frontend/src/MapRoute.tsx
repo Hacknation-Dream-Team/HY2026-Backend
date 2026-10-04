@@ -28,7 +28,11 @@ export const reverseGeocode = async (lat: number, lng: number) => {
 
 export const geocode = async (query: string) => {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+    let q = query;
+    if (!q.toLowerCase().includes('krak')) {
+      q += ', Kraków';
+    }
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&viewbox=19.78,50.12,20.08,49.98&bounded=1`);
     const data = await res.json();
     if (data && data.length > 0) return L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
   } catch (e) { console.error(e); }
@@ -48,7 +52,8 @@ export function MapRoute({
   setStartCoords = null,
   setMidCoords = null,
   setEndCoords = null,
-  readOnlyStartEnd = false
+  readOnlyStartEnd = false,
+  onRouteCalculated = null
 }: any) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -137,7 +142,7 @@ export function MapRoute({
         if (endLatlng) updateEndPoint(endLatlng);
         
         if (startLatlng && endLatlng) {
-          mapInstanceRef.current?.fitBounds([startLatlng, endLatlng], { padding: [50, 50] });
+          mapInstanceRef.current?.fitBounds([[startLatlng.lat, startLatlng.lng], [endLatlng.lat, endLatlng.lng]], { padding: [50, 50] });
           checkAndRoute();
         }
         setIsLoading(false);
@@ -253,7 +258,7 @@ export function MapRoute({
       }
 
       const waypoints = [startPoint];
-      if (showMidPoint && midPoint) waypoints.push(midPoint);
+      if ((showMidPoint || readOnlyStartEnd) && midPoint) waypoints.push(midPoint);
       waypoints.push(endPoint);
 
       const control = L.Routing.control({
@@ -275,6 +280,12 @@ export function MapRoute({
         setRouteInfo({ dist, timeStr });
         setRouteFound(true);
         setIsLoading(false);
+        if (onRouteCalculated) {
+          const points = [startPoint];
+          if ((showMidPoint || readOnlyStartEnd) && midPoint) points.push(midPoint);
+          points.push(endPoint);
+          onRouteCalculated({ dist, timeStr, time, points: points.map(p => ({ latitude: p.lat, longitude: p.lng })) });
+        }
       });
       
       control.on('routingerror', () => {

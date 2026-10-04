@@ -1,14 +1,26 @@
-import { useState } from 'react';
-import { Car, UserCircle2, PlusCircle, Calendar as CalendarIcon, Clock, MapPin, Trash2, ArrowLeft, Search, Map } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
+import { CarFormFields } from '../CarFormFields';
+import { api } from '../api';
 
-export function DiscoverView({ user, onOpenChat }: { user?: any, onOpenChat: (id: string) => void }) {
+export function DiscoverView({ user }: { user?: any }) {
   const [roleTab, setRoleTab] = useState<'driver' | 'passenger'>('driver');
   const [action, setAction] = useState<'none' | 'offer' | 'search' | 'addCar'>('none');
   const [tempHasCar, setTempHasCar] = useState(false); // local mock state for when user adds car in this session
+  const [hasFetchedCars, setHasFetchedCars] = useState(false);
+  const [userHasCar, setUserHasCar] = useState(false);
+
+  useEffect(() => {
+    api.getCars().then(cars => {
+      setUserHasCar(cars && cars.length > 0);
+      setHasFetchedCars(true);
+    }).catch(() => setHasFetchedCars(true));
+  }, []);
 
   const handleOffer = () => {
-    if (!user?.carPlate && !tempHasCar) {
+    if (!hasFetchedCars) return; // Wait until fetched
+    if (!userHasCar && !tempHasCar) {
       setAction('addCar');
     } else {
       setAction('offer');
@@ -17,7 +29,7 @@ export function DiscoverView({ user, onOpenChat }: { user?: any, onOpenChat: (id
 
   if (action === 'addCar') return <AddCarView onBack={() => setAction('none')} onSaved={() => { setTempHasCar(true); setAction('offer'); }} />;
   if (action === 'offer') return <OfferRideView onBack={() => setAction('none')} user={user} />;
-  if (action === 'search') return <SearchRideView onBack={() => setAction('none')} onOpenChat={onOpenChat} user={user} />;
+  if (action === 'search') return <SearchRideView onBack={() => setAction('none')} />;
 
   return (
     <div className="fade-in" style={{ padding: '20px' }}>
@@ -43,15 +55,11 @@ export function DiscoverView({ user, onOpenChat }: { user?: any, onOpenChat: (id
 }
 
 function DriverSection({ onOffer }: { onOffer: () => void }) {
-  const [cancelDate, setCancelDate] = useState('');
+  const [ads, setAds] = useState<any[]>([]);
 
-  const handleCancel = () => {
-    if (!cancelDate) alert('Wybierz datę!');
-    else {
-      alert(`Odwołano przejazd w dniu: ${cancelDate}`);
-      setCancelDate('');
-    }
-  };
+  useEffect(() => {
+    api.getAdvertisements().then(setAds).catch(console.error);
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -70,9 +78,20 @@ function DriverSection({ onOffer }: { onOffer: () => void }) {
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px', color: '#212529' }}>Zaplanowane przejazdy</h2>
         
-        <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px dashed #ced4da' }}>
-          Nie masz jeszcze żadnych zaplanowanych przejazdów.
-        </div>
+        {ads.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px dashed #ced4da' }}>
+            Nie masz jeszcze żadnych zaplanowanych przejazdów.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {ads.map(ad => (
+              <div key={ad.id} style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef' }}>
+                <div style={{ fontWeight: 'bold' }}>Wyjazd o: {ad.departureTime}</div>
+                <div style={{ fontSize: '13px', color: '#6c757d', marginTop: '4px' }}>Dni: {ad.daysOfWeek?.join(', ')}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -101,6 +120,25 @@ function PassengerSection({ onSearch }: { onSearch: () => void }) {
 }
 
 function AddCarView({ onBack, onSaved }: { onBack: () => void, onSaved: () => void }) {
+  const [carData, setCarData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!carData.plate || !carData.color) {
+      alert('Wypełnij wszystkie pola.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.addCar(carData);
+      onSaved();
+    } catch(e: any) {
+      alert(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fade-in" style={{ padding: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
@@ -113,21 +151,10 @@ function AddCarView({ onBack, onSaved }: { onBack: () => void, onSaved: () => vo
       <div className="card" style={{ padding: '20px', borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <p style={{ color: '#6c757d', fontSize: '14px', margin: 0 }}>Zanim ogłosisz przejazd, musisz dodać dane swojego samochodu.</p>
         
-        <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Marka i model</label>
-          <input type="text" placeholder="np. Toyota Yaris" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Numer rejestracyjny</label>
-          <input type="text" placeholder="np. KR 12345" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Liczba miejsc dla pasażerów</label>
-          <input type="number" defaultValue="3" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-        </div>
+        <CarFormFields carData={carData} onChange={setCarData} />
 
-        <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={onSaved}>
-          Zapisz i kontynuuj
+        <button disabled={loading} className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={handleSubmit}>
+          {loading ? 'Zapisywanie...' : 'Zapisz i kontynuuj'}
         </button>
       </div>
     </div>
@@ -136,13 +163,58 @@ function AddCarView({ onBack, onSaved }: { onBack: () => void, onSaved: () => vo
 
 function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   const [direction, setDirection] = useState<'home-to-work' | 'work-to-home'>('home-to-work');
-  const [rideType, setRideType] = useState<'one-time' | 'recurring'>('one-time');
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Pn', 'Wt', 'Śr', 'Cz', 'Pt']);
+  const [departureTime, setDepartureTime] = useState('07:00');
+  const [durationMins, setDurationMins] = useState(45);
+  const [routePoints, setRoutePoints] = useState<any[]>([]);
 
-  const home = user?.homeAddressText || 'Twój Dom';
-  const org = user?.organizationName || 'Twoja Praca';
+  const home = user?.homeAddressText || user?.homeAddress || 'Kraków, Wawel';
+  const org = user?.organizationName || 'Kraków, Rynek Główny';
 
   const startAddress = direction === 'home-to-work' ? home : org;
   const endAddress = direction === 'home-to-work' ? org : home;
+
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const calculateArrival = (depTime: string, mins: number) => {
+    if (!depTime) return '';
+    const [h, m] = depTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m, 0, 0);
+    date.setMinutes(date.getMinutes() + mins);
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  };
+
+  const mapDaysToEnum = (days: string[]) => {
+    const map: Record<string, string> = { 'Pn': 'Mon', 'Wt': 'Tue', 'Śr': 'Wed', 'Cz': 'Thu', 'Pt': 'Fri', 'Sb': 'Sat', 'Nd': 'Sun' };
+    return days.map(d => map[d]).filter(Boolean);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (routePoints.length < 2) {
+        alert('Trasa nie została jeszcze wyznaczona. Upewnij się, że masz ustawiony adres domowy i organizację.');
+        return;
+      }
+      const routeRes = await api.createRoute({
+        points: routePoints,
+        lookingFor: 'Passenger'
+      });
+
+      await api.createAdvertisement({
+        routeId: routeRes.id,
+        seats: 3,
+        departureTime: departureTime.length === 5 ? `${departureTime}:00` : departureTime,
+        daysOfWeek: mapDaysToEnum(selectedDays)
+      });
+      alert('Przejazd został ogłoszony!');
+      onBack();
+    } catch (e: any) {
+      alert('Błąd tworzenia ogłoszenia: ' + e.message);
+    }
+  };
 
   return (
     <div className="fade-in" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
@@ -162,55 +234,50 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', backgroundColor: '#e9ecef', padding: '4px', borderRadius: '12px' }}>
-        <button onClick={() => setRideType('one-time')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: rideType === 'one-time' ? 'white' : 'transparent', fontWeight: rideType === 'one-time' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
-          Jednorazowy
-        </button>
-        <button onClick={() => setRideType('recurring')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: rideType === 'recurring' ? 'white' : 'transparent', fontWeight: rideType === 'recurring' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
-          Cykliczny
-        </button>
-      </div>
-
       <div style={{ flex: 1, minHeight: '300px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #ced4da' }}>
         <MapRoute 
           startAddress={startAddress} setStartAddress={() => {}}
           endAddress={endAddress} setEndAddress={() => {}}
           title="Ustal trasę (Kliknij aby dodać punkty pośrednie)"
           readOnlyStartEnd={true}
+          onRouteCalculated={(info: any) => {
+            setDurationMins(info.time);
+            setRoutePoints(info.points || []);
+          }}
         />
       </div>
 
       <div className="card" style={{ padding: '20px', borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {rideType === 'one-time' ? (
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Data przejazdu</label>
-            <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-          </div>
-        ) : (
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Dni tygodnia</label>
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-              {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => (
-                <div key={day} style={{ padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', backgroundColor: day === 'Pn' || day === 'Wt' || day === 'Śr' || day === 'Cz' || day === 'Pt' ? '#198754' : '#f8f9fa', color: day === 'Pn' || day === 'Wt' || day === 'Śr' || day === 'Cz' || day === 'Pt' ? 'white' : '#212529' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Dni tygodnia</label>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => {
+              const isSelected = selectedDays.includes(day);
+              return (
+                <div 
+                  key={day} 
+                  onClick={() => toggleDay(day)}
+                  style={{ padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', backgroundColor: isSelected ? '#198754' : '#f8f9fa', color: isSelected ? 'white' : '#212529', userSelect: 'none' }}
+                >
                   {day}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Godzina wyjazdu</label>
-            <input type="time" defaultValue="07:00" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+            <input type="time" value={departureTime} onChange={e => setDepartureTime(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Szacowany dojazd</label>
-            <input type="time" defaultValue="07:45" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+            <input type="time" value={calculateArrival(departureTime, durationMins)} readOnly style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none', backgroundColor: '#e9ecef', color: '#6c757d' }} />
           </div>
         </div>
 
-        <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#198754' }} onClick={onBack}>
+        <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#198754' }} onClick={handleSubmit}>
           Utwórz trasę i ogłoś przejazd
         </button>
       </div>
@@ -218,10 +285,41 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   );
 }
 
-function SearchRideView({ onBack, onOpenChat, user }: { onBack: () => void, onOpenChat: (chatId: string) => void, user?: any }) {
+function SearchRideView({ onBack }: { onBack: () => void }) {
   const [hasSearched, setHasSearched] = useState(false);
   const [direction, setDirection] = useState<'home-to-work' | 'work-to-home'>('home-to-work');
-  const [rideType, setRideType] = useState<'one-time' | 'recurring'>('one-time');
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Pn', 'Wt', 'Śr', 'Cz', 'Pt']);
+  const [timeMode, setTimeMode] = useState<'departure' | 'arrival'>('departure');
+  const [timeValue, setTimeValue] = useState('07:00');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [lastRequestId, setLastRequestId] = useState<number | null>(null);
+
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const mapDaysToEnum = (day: string) => {
+    const map: Record<string, string> = { 'Pn': 'Mon', 'Wt': 'Tue', 'Śr': 'Wed', 'Cz': 'Thu', 'Pt': 'Fri', 'Sb': 'Sat', 'Nd': 'Sun' };
+    return map[day];
+  };
+
+  const handleSearch = async () => {
+    setHasSearched(true);
+    try {
+      const req = await api.createRideRequest({
+        direction: direction === 'home-to-work' ? 0 : 1,
+        departureTime: timeValue.length === 5 ? `${timeValue}:00` : timeValue,
+        daysOfWeek: selectedDays.map(mapDaysToEnum).filter(Boolean)
+      });
+      setLastRequestId(req.id);
+      
+      const results = await api.searchMatches({ requestId: req.id });
+      setSearchResults(results);
+    } catch (e: any) {
+      alert('Błąd wyszukiwania: ' + e.message);
+      setHasSearched(false);
+    }
+  };
 
   return (
     <div className="fade-in" style={{ padding: '20px' }}>
@@ -244,76 +342,86 @@ function SearchRideView({ onBack, onOpenChat, user }: { onBack: () => void, onOp
             </button>
           </div>
 
-          <div style={{ display: 'flex', backgroundColor: '#e9ecef', padding: '4px', borderRadius: '12px' }}>
-            <button onClick={() => setRideType('one-time')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: rideType === 'one-time' ? 'white' : 'transparent', fontWeight: rideType === 'one-time' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
-              Jednorazowy
-            </button>
-            <button onClick={() => setRideType('recurring')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: rideType === 'recurring' ? 'white' : 'transparent', fontWeight: rideType === 'recurring' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
-              Cykliczny
-            </button>
-          </div>
-
-          {rideType === 'one-time' ? (
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Data przejazdu</label>
-              <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-            </div>
-          ) : (
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Dni tygodnia</label>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => (
-                  <div key={day} style={{ padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', backgroundColor: day === 'Pn' || day === 'Wt' ? '#0d6efd' : '#f8f9fa', color: day === 'Pn' || day === 'Wt' ? 'white' : '#212529' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Dni tygodnia</label>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => {
+                const isSelected = selectedDays.includes(day);
+                return (
+                  <div 
+                    key={day} 
+                    onClick={() => toggleDay(day)}
+                    style={{ padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', backgroundColor: isSelected ? '#0d6efd' : '#f8f9fa', color: isSelected ? 'white' : '#212529', userSelect: 'none' }}
+                  >
                     {day}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Godzina wyjazdu</label>
-              <input type="time" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Szacowany dojazd</label>
-              <input type="time" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+                );
+              })}
             </div>
           </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>Szukam po godzinie:</label>
+            <div style={{ display: 'flex', backgroundColor: '#e9ecef', padding: '4px', borderRadius: '12px' }}>
+              <button onClick={() => setTimeMode('departure')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: timeMode === 'departure' ? 'white' : 'transparent', fontWeight: timeMode === 'departure' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>Wyjazdu</button>
+              <button onClick={() => setTimeMode('arrival')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: timeMode === 'arrival' ? 'white' : 'transparent', fontWeight: timeMode === 'arrival' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>Dojazdu</button>
+            </div>
+            <input type="time" value={timeValue} onChange={e => setTimeValue(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none', marginTop: '4px' }} />
+          </div>
 
-          <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={() => setHasSearched(true)}>
-            Szukaj w API
+          <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={handleSearch}>
+            Szukaj w bazie
           </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h2 style={{ fontSize: '16px', color: '#6c757d' }}>Znalezione przejazdy (z API)</h2>
+          <h2 style={{ fontSize: '16px', color: '#6c757d', display: 'flex', justifyContent: 'space-between' }}>
+            Znalezione przejazdy (z bazy)
+            <span style={{ fontSize: '13px', color: '#0d6efd', cursor: 'pointer' }} onClick={() => setHasSearched(false)}>Zmień filtry</span>
+          </h2>
           
-          <div 
-            onClick={() => onOpenChat('chat1')}
-            style={{ backgroundColor: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e9ecef', cursor: 'pointer', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '40px', height: '40px', backgroundColor: '#0d6efd', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>JK</div>
-                <div>
-                  <div style={{ fontWeight: 'bold', color: '#212529' }}>Jan Kowalski</div>
-                  <div style={{ fontSize: '12px', color: '#6c757d' }}>Toyota Yaris • 4.9 ★ </div>
+          {searchResults.length === 0 && <div style={{ textAlign: 'center', color: '#6c757d' }}>Brak wyników</div>}
+          {searchResults.map(res => (
+            <div 
+              key={`${res.advertisementId}-${res.driverId}`}
+              style={{ backgroundColor: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e9ecef', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '40px', height: '40px', backgroundColor: '#0d6efd', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#212529' }}>Kierowca #{res.driverId}</div>
+                    <div style={{ fontSize: '12px', color: '#6c757d' }}>Wolnych miejsc: {res.freeSeats}</div>
+                  </div>
                 </div>
               </div>
-              <div style={{ fontWeight: 'bold', color: '#198754' }}>15 PLN</div>
+              
+              <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} /> Wyjazd: {res.departureTime}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={16} /> Dojście do auta: {res.pickupDistanceM}m, z auta: {res.dropoffDistanceM}m</div>
+              </div>
+              
+              <button 
+                onClick={async () => {
+                  if (!lastRequestId) return;
+                  try {
+                    await api.createMatch({
+                      advertisementId: res.advertisementId,
+                      requestId: lastRequestId,
+                      pickupSeq: res.pickupSeq,
+                      dropoffSeq: res.dropoffSeq
+                    });
+                    alert('Wysłano prośbę o dołączenie do przejazdu!');
+                  } catch(e: any) {
+                    alert('Błąd: ' + e.message);
+                  }
+                }}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#e9ecef', color: '#212529', fontWeight: 'bold', marginTop: '16px', cursor: 'pointer' }}
+              >
+                Poproś o dołączenie
+              </button>
             </div>
-            
-            <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} /> 07:15 - 07:45</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={16} /> Trasa pokrywa się w 90%</div>
-            </div>
-            
-            <button style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#e9ecef', color: '#212529', fontWeight: 'bold', marginTop: '16px', cursor: 'pointer' }}>
-              Skontaktuj się
-            </button>
-          </div>
+          ))}
         </div>
       )}
     </div>

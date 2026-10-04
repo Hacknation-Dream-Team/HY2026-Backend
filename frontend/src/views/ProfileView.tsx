@@ -1,8 +1,16 @@
 import { User, LogOut, Settings, ArrowLeft, Car } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { CarFormFields } from '../CarFormFields';
+import { api } from '../api';
 
 export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => void }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [carData, setCarData] = useState<any>({ brand: 'Toyota', model: 'Yaris', plate: 'KR 12345', color: 'Srebrny', seats: 3 });
+  const [organizations, setOrganizations] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getOrganizations().then(data => setOrganizations(data)).catch(err => console.error(err));
+  }, []);
 
   if (showSettings) {
     return (
@@ -32,12 +40,12 @@ export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => v
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Płeć</label>
-            <select defaultValue={user?.gender || ''} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }}>
+            <select defaultValue={user?.gender !== undefined ? user.gender : ''} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }}>
               <option value="">Wybierz...</option>
-              <option value="Mężczyzna">Mężczyzna</option>
-              <option value="Kobieta">Kobieta</option>
-              <option value="Inne">Inne</option>
-              <option value="Nie chcę podawać">Nie chcę podawać</option>
+              <option value="1">Mężczyzna</option>
+              <option value="0">Kobieta</option>
+              <option value="2">Inne</option>
+              <option value="2">Nie chcę podawać</option>
             </select>
           </div>
           
@@ -50,7 +58,12 @@ export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => v
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Organizacja (Praca)</label>
-            <input type="text" defaultValue={user?.organizationName || 'BBP (Business Park)'} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+            <select defaultValue={user?.organizationName || ''} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none', backgroundColor: 'white' }}>
+              <option value="">Wybierz organizację...</option>
+              {organizations.map(org => (
+                <option key={org.id} value={org.name}>{org.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -58,18 +71,10 @@ export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => v
           <h2 style={{ fontSize: '16px', margin: 0, color: '#198754', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Car size={18} /> Twój samochód
           </h2>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Marka i model</label>
-            <input type="text" defaultValue="Toyota Yaris" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Numer rejestracyjny</label>
-            <input type="text" defaultValue="KR 12345" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Kolor</label>
-            <input type="text" defaultValue="Srebrny" className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
-          </div>
+          <CarFormFields 
+            carData={carData} 
+            onChange={setCarData} 
+          />
         </div>
 
         <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '24px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={() => setShowSettings(false)}>

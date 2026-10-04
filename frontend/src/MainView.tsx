@@ -6,13 +6,10 @@ import { ProfileView } from './views/ProfileView';
 
 export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void }) {
   const [activeTab, setActiveTab] = useState<'discover' | 'chats' | 'profile'>('discover');
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [, setActiveChatId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const openChat = (chatId: string) => {
-    setActiveChatId(chatId);
-    setActiveTab('chats');
-  };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f8f9fa', position: 'relative' }}>
@@ -43,8 +40,8 @@ export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void
       )}
 
       <div style={{ flex: 1, overflowY: 'auto' }} onClick={() => setShowNotifications(false)}>
-        {activeTab === 'discover' && <DiscoverView user={user} onOpenChat={openChat} />}
-        {activeTab === 'chats' && <ChatsView activeChatId={activeChatId} onSetActiveChatId={setActiveChatId} />}
+        {activeTab === 'discover' && <DiscoverView user={user} />}
+        {activeTab === 'chats' && <ChatsView />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
       </div>
 

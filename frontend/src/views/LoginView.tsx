@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { api } from '../api';
 
@@ -18,7 +18,14 @@ export function LoginView({ onLogin, onBack }: { onLogin: (user: any) => void, o
     setError('');
     try {
       const authData = await api.login({ email, password });
-      onLogin(authData.user);
+      localStorage.setItem('token', authData.token);
+      
+      try {
+        const fullUser = await fetch('/api/users/me', { headers: { 'Authorization': `Bearer ${authData.token}` } }).then(r => r.json());
+        onLogin({ ...authData.user, homeAddressText: fullUser.homeAddress });
+      } catch {
+        onLogin(authData.user);
+      }
     } catch (e: any) {
       setError(e.message || 'Nie udało się zalogować.');
     } finally {
