@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
@@ -61,6 +61,15 @@ function DriverSection({ onOffer }: { onOffer: () => void }) {
     api.getAdvertisements().then(setAds).catch(console.error);
   }, []);
 
+  const formatDays = (days: any[]) => {
+    if (!days || !Array.isArray(days)) return '';
+    const map: Record<string | number, string> = {
+      0: 'Pn', 1: 'Wt', 2: 'Śr', 3: 'Cz', 4: 'Pt', 5: 'Sb', 6: 'Nd',
+      'Mon': 'Pn', 'Tue': 'Wt', 'Wed': 'Śr', 'Thu': 'Cz', 'Fri': 'Pt', 'Sat': 'Sb', 'Sun': 'Nd'
+    };
+    return days.map(d => map[d] ?? d).join(', ');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <button 
@@ -87,7 +96,7 @@ function DriverSection({ onOffer }: { onOffer: () => void }) {
             {ads.map(ad => (
               <div key={ad.id} style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef' }}>
                 <div style={{ fontWeight: 'bold' }}>Wyjazd o: {ad.departureTime}</div>
-                <div style={{ fontSize: '13px', color: '#6c757d', marginTop: '4px' }}>Dni: {ad.daysOfWeek?.join(', ')}</div>
+                <div style={{ fontSize: '13px', color: '#6c757d', marginTop: '4px' }}>Dni: {formatDays(ad.daysOfWeek)}</div>
               </div>
             ))}
           </div>
@@ -167,12 +176,30 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   const [departureTime, setDepartureTime] = useState('07:00');
   const [durationMins, setDurationMins] = useState(45);
   const [routePoints, setRoutePoints] = useState<any[]>([]);
+  const [midAddress, setMidAddress] = useState<string>('');
+  const [organizations, setOrganizations] = useState<any[]>([]);
 
-  const home = user?.homeAddressText || user?.homeAddress || 'Kraków, Wawel';
-  const org = user?.organizationName || 'Kraków, Rynek Główny';
+  useEffect(() => {
+    api.getOrganizations().then(setOrganizations).catch(console.error);
+  }, []);
+
+  const userOrg = organizations.find(o => o.id === user?.organizationId || o.name === user?.organizationName);
+
+  const home = user?.homeAddress || user?.homeAddressText || 'Kraków, Wawel';
+  const org = userOrg?.address || user?.organizationName || 'Kraków, Rynek Główny';
+
+  const homeCoords = useMemo(() => user?.homeLocation ? { lat: user.homeLocation.latitude, lng: user.homeLocation.longitude } : null, [user?.homeLocation?.latitude, user?.homeLocation?.longitude]);
+  const orgCoords = useMemo(() => userOrg?.location ? { lat: userOrg.location.latitude, lng: userOrg.location.longitude } : null, [userOrg?.location?.latitude, userOrg?.location?.longitude]);
 
   const startAddress = direction === 'home-to-work' ? home : org;
   const endAddress = direction === 'home-to-work' ? org : home;
+  const startCoords = direction === 'home-to-work' ? homeCoords : orgCoords;
+  const endCoords = direction === 'home-to-work' ? orgCoords : homeCoords;
+
+  const handleRouteCalculated = useCallback((info: any) => {
+    setDurationMins(prev => prev !== info.time ? info.time : prev);
+    setRoutePoints(info.points || []);
+  }, []);
 
   const toggleDay = (day: string) => {
     setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
@@ -188,8 +215,8 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   };
 
   const mapDaysToEnum = (days: string[]) => {
-    const map: Record<string, string> = { 'Pn': 'Mon', 'Wt': 'Tue', 'Śr': 'Wed', 'Cz': 'Thu', 'Pt': 'Fri', 'Sb': 'Sat', 'Nd': 'Sun' };
-    return days.map(d => map[d]).filter(Boolean);
+    const map: Record<string, number> = { 'Pn': 0, 'Wt': 1, 'Śr': 2, 'Cz': 3, 'Pt': 4, 'Sb': 5, 'Nd': 6 };
+    return days.map(d => map[d]).filter(v => v !== undefined);
   };
 
   const handleSubmit = async () => {
@@ -198,7 +225,24 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
         alert('Trasa nie została jeszcze wyznaczona. Upewnij się, że masz ustawiony adres domowy i organizację.');
         return;
       }
+      const targetDirection = direction === 'home-to-work' ? 'ToWork' : 'ToHome';
+
+      // Clean up previous route for this direction if it already exists
+      try {
+        const existingRoutes = await api.getRoutes();
+        if (Array.isArray(existingRoutes)) {
+          for (const r of existingRoutes) {
+            if (r.direction === targetDirection || r.direction === (targetDirection === 'ToWork' ? 0 : 1)) {
+              await api.deleteRoute(r.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not clean up existing routes', err);
+      }
+
       const routeRes = await api.createRoute({
+        direction: targetDirection,
         points: routePoints,
         lookingFor: 'Passenger'
       });
@@ -217,35 +261,34 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   };
 
   return (
-    <div className="fade-in" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
+    <div className="fade-in" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
+        <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
           <ArrowLeft size={24} />
         </button>
         <h1 style={{ fontSize: '20px', margin: 0 }}>Ogłoś przejazd</h1>
       </div>
 
       <div style={{ display: 'flex', backgroundColor: '#e9ecef', padding: '4px', borderRadius: '12px' }}>
-        <button onClick={() => setDirection('home-to-work')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: direction === 'home-to-work' ? 'white' : 'transparent', fontWeight: direction === 'home-to-work' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
+        <button type="button" onClick={() => setDirection('home-to-work')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: direction === 'home-to-work' ? 'white' : 'transparent', fontWeight: direction === 'home-to-work' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
           Dom &rarr; Praca
         </button>
-        <button onClick={() => setDirection('work-to-home')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: direction === 'work-to-home' ? 'white' : 'transparent', fontWeight: direction === 'work-to-home' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
+        <button type="button" onClick={() => setDirection('work-to-home')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', backgroundColor: direction === 'work-to-home' ? 'white' : 'transparent', fontWeight: direction === 'work-to-home' ? 'bold' : 'normal', transition: 'all 0.2s', cursor: 'pointer' }}>
           Praca &rarr; Dom
         </button>
       </div>
 
-      <div style={{ flex: 1, minHeight: '300px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #ced4da' }}>
-        <MapRoute 
-          startAddress={startAddress} setStartAddress={() => {}}
-          endAddress={endAddress} setEndAddress={() => {}}
-          title="Ustal trasę (Kliknij aby dodać punkty pośrednie)"
-          readOnlyStartEnd={true}
-          onRouteCalculated={(info: any) => {
-            setDurationMins(info.time);
-            setRoutePoints(info.points || []);
-          }}
-        />
-      </div>
+      <MapRoute 
+        startAddress={startAddress}
+        endAddress={endAddress}
+        startCoords={startCoords}
+        endCoords={endCoords}
+        midAddress={midAddress}
+        setMidAddress={setMidAddress}
+        title="Trasa przejazdu (Kliknij mapę, by dodać punkt pośredni)"
+        readOnlyStartEnd={true}
+        onRouteCalculated={handleRouteCalculated}
+      />
 
       <div className="card" style={{ padding: '20px', borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
@@ -299,22 +342,38 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
   };
 
   const mapDaysToEnum = (day: string) => {
-    const map: Record<string, string> = { 'Pn': 'Mon', 'Wt': 'Tue', 'Śr': 'Wed', 'Cz': 'Thu', 'Pt': 'Fri', 'Sb': 'Sat', 'Nd': 'Sun' };
+    const map: Record<string, number> = { 'Pn': 0, 'Wt': 1, 'Śr': 2, 'Cz': 3, 'Pt': 4, 'Sb': 5, 'Nd': 6 };
     return map[day];
   };
 
   const handleSearch = async () => {
     setHasSearched(true);
     try {
+      const targetDirection = direction === 'home-to-work' ? 'ToWork' : 'ToHome';
+
+      // Clean up previous ride request for this direction if it exists
+      try {
+        const existingRequests = await api.getRideRequests();
+        if (Array.isArray(existingRequests)) {
+          for (const req of existingRequests) {
+            if (req.direction === targetDirection || req.direction === (targetDirection === 'ToWork' ? 0 : 1)) {
+              await api.deleteRideRequest(req.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not clean up existing ride requests', err);
+      }
+
       const req = await api.createRideRequest({
-        direction: direction === 'home-to-work' ? 0 : 1,
+        direction: targetDirection,
         departureTime: timeValue.length === 5 ? `${timeValue}:00` : timeValue,
-        daysOfWeek: selectedDays.map(mapDaysToEnum).filter(Boolean)
+        daysOfWeek: selectedDays.map(mapDaysToEnum).filter(v => v !== undefined)
       });
       setLastRequestId(req.id);
       
       const results = await api.searchMatches({ requestId: req.id });
-      setSearchResults(results);
+      setSearchResults(results || []);
     } catch (e: any) {
       alert('Błąd wyszukiwania: ' + e.message);
       setHasSearched(false);

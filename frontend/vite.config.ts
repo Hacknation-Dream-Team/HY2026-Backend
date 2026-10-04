@@ -10,6 +10,20 @@ export default defineConfig({
         target: 'https://fgrrbd09-5109.uks1.devtunnels.ms',
         changeOrigin: true,
         secure: false,
+        headers: {
+          'X-Tunnel-Skip-Anti-Phishing-Page': 'true',
+          'bypass-tunnel-reminder': 'true'
+        }
+      },
+      '/osrm': {
+        target: 'https://fgrrbd09-5888.uks1.devtunnels.ms',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/osrm/, ''),
+        headers: {
+          'X-Tunnel-Skip-Anti-Phishing-Page': 'true',
+          'bypass-tunnel-reminder': 'true'
+        }
       }
     }
   },

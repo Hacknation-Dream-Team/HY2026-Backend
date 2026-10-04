@@ -1,5 +1,24 @@
 const API_BASE = '/api';
 
+async function handleResponse(res: Response, defaultMessage: string) {
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `${defaultMessage}: ${res.status}`;
+    try {
+      const json = JSON.parse(text);
+      if (json.message) {
+        message = json.message;
+      } else if (json.errors) {
+        message = Object.values(json.errors).flat().join('\n');
+      }
+    } catch {
+      message += ` - ${text}`;
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export const api = {
   async register(data: any) {
     const res = await fetch(`${API_BASE}/users`, {
@@ -7,22 +26,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const text = await res.text();
-      let message = `Registration failed: ${res.status}`;
-      try {
-        const json = JSON.parse(text);
-        if (json.message) {
-          message = json.message;
-        } else if (json.errors) {
-          message = Object.values(json.errors).flat().join('\n');
-        }
-      } catch {
-        message += ` - ${text}`;
-      }
-      throw new Error(message);
-    }
-    return res.json();
+    return handleResponse(res, 'Registration failed');
   },
 
   async login(data: any) {
@@ -67,17 +71,24 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error('Create route failed: ' + txt);
+    return handleResponse(res, 'Create route failed');
+  },
+
+  async deleteRoute(id: number | string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/routes/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok && res.status !== 204) {
+      return handleResponse(res, 'Deleting route failed');
     }
-    return res.json();
+    return true;
   },
 
   async getOrganizations() {
     const res = await fetch(`${API_BASE}/organizations`);
-    if (!res.ok) throw new Error('Fetching organizations failed');
-    return res.json();
+    return handleResponse(res, 'Fetching organizations failed');
   },
 
   async createAdvertisement(data: any) {
@@ -90,11 +101,7 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error('Create ad failed: ' + txt);
-    }
-    return res.json();
+    return handleResponse(res, 'Create ad failed');
   },
 
   async getAdvertisements() {
@@ -102,8 +109,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/advertisements`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Fetching ads failed');
-    return res.json();
+    return handleResponse(res, 'Fetching ads failed');
   },
 
   async createMatch(data: any) {
@@ -116,11 +122,7 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error('Create match failed: ' + txt);
-    }
-    return res.json();
+    return handleResponse(res, 'Create match failed');
   },
 
   async createRideRequest(data: any) {
@@ -133,11 +135,19 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error('Create ride request failed: ' + txt);
+    return handleResponse(res, 'Create ride request failed');
+  },
+
+  async deleteRideRequest(id: number | string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/riderequests/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok && res.status !== 204) {
+      return handleResponse(res, 'Deleting request failed');
     }
-    return res.json();
+    return true;
   },
 
   async getRideRequests() {
@@ -145,8 +155,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/riderequests`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Fetching requests failed');
-    return res.json();
+    return handleResponse(res, 'Fetching requests failed');
   },
 
   async searchMatches(params: any) {
@@ -155,8 +164,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/matches?${query}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Search failed');
-    return res.json();
+    return handleResponse(res, 'Search failed');
   },
   
   async getMyMatches() {
@@ -164,8 +172,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/matches/my`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Fetching my matches failed');
-    return res.json();
+    return handleResponse(res, 'Fetching my matches failed');
   },
 
   async getCars() {
@@ -173,8 +180,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/cars`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Fetching cars failed');
-    return res.json();
+    return handleResponse(res, 'Fetching cars failed');
   },
 
   async getCarModels() {
@@ -182,8 +188,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/cars/models`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('Fetching car models failed');
-    return res.json();
+    return handleResponse(res, 'Fetching car models failed');
   },
 
   async addCar(data: any) {
@@ -196,10 +201,6 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error('Adding car failed: ' + txt);
-    }
-    return res.json();
+    return handleResponse(res, 'Adding car failed');
   }
 };
