@@ -29,3 +29,35 @@ Podczas prac nad projektem oraz w jego strukturze wspierano modelami sztucznej i
 - Sonet 5.5
 - Fade 5.1
 
+# Instrukcja uruchomienia w środowisku lokalnym
+
+### 1. Baza danych (PostgreSQL)
+
+```bash
+docker run -d --name hy2026-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=neondb -p 5432:5432 postgis/postgis:latest
+```
+
+---
+
+### 2. Backend (.NET)
+
+W pliku [Backend/appsettings.json](file:///home/a15/programing/HackYeah2026/HY2026-Backend/Backend/appsettings.json) ustaw połączenie do lokalnej bazy w `DefaultConnection`:
+```json
+"DefaultConnection": "Host=localhost;Port=5432;Database=neondb;Username=postgres;Password=postgres"
+```
+
+Uruchomienie backendu:
+```bash
+cd Backend
+dotnet run
+```
+
+---
+
+### 3. Frontend (React / Vite)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
