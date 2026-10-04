@@ -25,23 +25,34 @@ public class CarService : ICarService
             FuelType = m.FuelType,
             LPer100km = m.LPer100km,
             KwhPer100km = m.KwhPer100km,
-            Co2GKm = m.Co2GKm,
-            Seats = m.Seats
+            Co2GKm = m.Co2GKm
         });
     }
 
     public async Task<UserCarDto> AddUserCarAsync(long userId, CreateUserCarDto createDto)
     {
+        if (!createDto.CarModelId.HasValue && string.IsNullOrWhiteSpace(createDto.ModelName))
+        {
+            throw new ArgumentException("Either CarModelId or ModelName must be provided.");
+        }
+
         var userCar = new UserCar
         {
             UserId = userId,
-            BrandId = createDto.BrandId
+            CarModelId = createDto.CarModelId,
+            ModelName = createDto.ModelName,
+            Plate = createDto.Plate,
+            Color = createDto.Color,
+            PassengerSeats = createDto.PassengerSeats > 0 ? createDto.PassengerSeats : (short)4
         };
 
         _context.UserCars.Add(userCar);
         await _context.SaveChangesAsync();
 
-        await _context.Entry(userCar).Reference(uc => uc.CarModel).LoadAsync();
+        if (userCar.CarModelId.HasValue)
+        {
+            await _context.Entry(userCar).Reference(uc => uc.CarModel).LoadAsync();
+        }
 
         return MapToDto(userCar);
     }
@@ -75,7 +86,11 @@ public class CarService : ICarService
         {
             Id = userCar.Id,
             UserId = userCar.UserId,
-            BrandId = userCar.BrandId,
+            CarModelId = userCar.CarModelId,
+            ModelName = userCar.ModelName,
+            Plate = userCar.Plate,
+            Color = userCar.Color,
+            PassengerSeats = userCar.PassengerSeats,
             CarModel = userCar.CarModel == null ? null : new CarModelDto
             {
                 Id = userCar.CarModel.Id,
@@ -84,8 +99,7 @@ public class CarService : ICarService
                 FuelType = userCar.CarModel.FuelType,
                 LPer100km = userCar.CarModel.LPer100km,
                 KwhPer100km = userCar.CarModel.KwhPer100km,
-                Co2GKm = userCar.CarModel.Co2GKm,
-                Seats = userCar.CarModel.Seats
+                Co2GKm = userCar.CarModel.Co2GKm
             }
         };
     }

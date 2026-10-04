@@ -17,9 +17,47 @@ public class AdvertisementService : IAdvertisementService
     public async Task<AdvertisementDto> CreateAdvertisementAsync(long userId, CreateAdvertisementDto createDto)
     {
         // verify route belongs to user
-        var route = await _context.Routes.FirstOrDefaultAsync(r => r.Id == createDto.RouteId && r.UserId == userId);
+        var route = await _context.Routes
+            .FirstOrDefaultAsync(r => r.Id == createDto.RouteId && r.UserId == userId);
+
         if (route == null)
             throw new InvalidOperationException("Route not found or does not belong to the user.");
+
+        if (createDto.UsersCarId.HasValue)
+        {
+            var userCar = await _context.UserCars
+                .FirstOrDefaultAsync(uc => uc.Id == createDto.UsersCarId.Value && uc.UserId == userId);
+
+            if (userCar == null)
+            {
+                throw new InvalidOperationException("Specified car was not found or does not belong to the user.");
+            }
+
+            if (createDto.Seats > userCar.PassengerSeats)
+            {
+                throw new InvalidOperationException($"Seats ({createDto.Seats}) cannot exceed the car's passenger seats ({userCar.PassengerSeats}).");
+            }
+        }
+
+        if (createDto.Seats <= 0)
+        {
+            throw new InvalidOperationException("Seats must be greater than 0.");
+        }
+
+        // Check for schedule overlaps with existing active advertisements of this driver on the same direction/route
+        var existingAds = await _context.Advertisements
+            .Include(a => a.Route)
+            .Where(a => a.IsActive && a.Route!.UserId == userId && a.Route.Direction == route.Direction)
+            .ToListAsync();
+
+        foreach (var existingAd in existingAds)
+        {
+            if (DoDaysOverlap(existingAd.DaysOfWeek, createDto.DaysOfWeek) && existingAd.DepartureTime == createDto.DepartureTime)
+            {
+                throw new InvalidOperationException(
+                    $"Driver already has an active advertisement for this direction at {existingAd.DepartureTime:HH:mm}.");
+            }
+        }
 
         var advertisement = new Advertisement
         {
@@ -28,7 +66,6 @@ public class AdvertisementService : IAdvertisementService
             Seats = createDto.Seats,
             DepartureTime = createDto.DepartureTime,
             DaysOfWeek = createDto.DaysOfWeek,
-            IsRecurring = createDto.IsRecurring,
             IsActive = true,
             Description = createDto.Description
         };
@@ -74,6 +111,15 @@ public class AdvertisementService : IAdvertisementService
         return true;
     }
 
+    public static bool DoDaysOverlap(Weekday[]? days1, Weekday[]? days2)
+    {
+        if (days1 == null || days1.Length == 0 || days2 == null || days2.Length == 0)
+        {
+            return true;
+        }
+        return days1.Intersect(days2).Any();
+    }
+
     private static AdvertisementDto MapToDto(Advertisement advertisement)
     {
         return new AdvertisementDto
@@ -84,7 +130,6 @@ public class AdvertisementService : IAdvertisementService
             Seats = advertisement.Seats,
             DepartureTime = advertisement.DepartureTime,
             DaysOfWeek = advertisement.DaysOfWeek,
-            IsRecurring = advertisement.IsRecurring,
             IsActive = advertisement.IsActive,
             Description = advertisement.Description
         };

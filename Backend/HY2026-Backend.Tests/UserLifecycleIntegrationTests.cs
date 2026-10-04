@@ -31,6 +31,7 @@ public class UserLifecycleIntegrationTests : IClassFixture<WebApplicationFactory
             Surname = "Doe",
             Email = uniqueEmail,
             Phone = "+48500600700",
+            Gender = HY2026_Backend.Models.UserGender.Male,
             Password = initialPassword,
             ProfileImg = "https://example.com/avatar.jpg"
         };
@@ -43,6 +44,7 @@ public class UserLifecycleIntegrationTests : IClassFixture<WebApplicationFactory
         Assert.False(string.IsNullOrWhiteSpace(registerResult.Token));
         Assert.Equal("John", registerResult.User.Name);
         Assert.Equal(uniqueEmail.ToLower(), registerResult.User.Email);
+        Assert.Equal(HY2026_Backend.Models.UserGender.Male, registerResult.User.Gender);
 
         var userId = registerResult.User.Id;
 
@@ -83,6 +85,7 @@ public class UserLifecycleIntegrationTests : IClassFixture<WebApplicationFactory
             Name = "Jane",
             Surname = "Smith",
             Phone = "+48600700800",
+            Gender = HY2026_Backend.Models.UserGender.Female,
             ProfileImg = "https://example.com/new_avatar.jpg"
         };
 
@@ -94,6 +97,7 @@ public class UserLifecycleIntegrationTests : IClassFixture<WebApplicationFactory
         Assert.Equal("Jane", updatedUser.Name);
         Assert.Equal("Smith", updatedUser.Surname);
         Assert.Equal("+48600700800", updatedUser.Phone);
+        Assert.Equal(HY2026_Backend.Models.UserGender.Female, updatedUser.Gender);
 
         // STEP 5: Get authenticated user profile via /api/users/me endpoint
         var meResponse = await authenticatedClient.GetAsync("/api/users/me");

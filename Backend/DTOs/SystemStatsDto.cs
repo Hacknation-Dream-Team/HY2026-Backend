@@ -9,6 +9,6 @@ public class SystemStatsDto
     public int TotalAdvertisements { get; set; }
     public int TotalRideRequests { get; set; }
     public int TotalMatches { get; set; }
-    public int TotalRides { get; set; }
+    public int TotalRideEvents { get; set; }
     public int TotalCarModels { get; set; }
 }

@@ -43,6 +43,31 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Updates the home address and coordinates of the authenticated user.
+    /// </summary>
+    [HttpPut("me/home-address")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserDto>> UpdateHomeAddress([FromBody] UpdateHomeAddressDto dto)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId == null)
+        {
+            return Unauthorized();
+        }
+
+        var user = await _userService.UpdateHomeAddressAsync(currentUserId.Value, dto);
+        if (user == null)
+        {
+            return NotFound(new { message = "User account not found." });
+        }
+
+        return Ok(user);
+    }
+
+    /// <summary>
     /// Gets the list of all users.
     /// </summary>
     [HttpGet]

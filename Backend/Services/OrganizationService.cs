@@ -22,6 +22,7 @@ public class OrganizationService : IOrganizationService
         var organization = new Organization
         {
             Name = createDto.Name,
+            Address = createDto.Address,
             Location = location
         };
 
@@ -52,6 +53,7 @@ public class OrganizationService : IOrganizationService
 
         var location = new Point(updateDto.Location.Longitude, updateDto.Location.Latitude) { SRID = 4326 };
         organization.Name = updateDto.Name;
+        organization.Address = updateDto.Address;
         organization.Location = location;
 
         await _context.SaveChangesAsync();
@@ -75,6 +77,7 @@ public class OrganizationService : IOrganizationService
         {
             Id = organization.Id,
             Name = organization.Name,
+            Address = organization.Address,
             Location = new PointDto { Latitude = organization.Location.Y, Longitude = organization.Location.X }
         };
     }

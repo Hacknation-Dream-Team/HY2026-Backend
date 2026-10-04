@@ -1,6 +1,7 @@
 using System.Text;
 using HY2026_Backend.Data;
 using HY2026_Backend.Helpers;
+using HY2026_Backend.Hubs;
 using HY2026_Backend.Models;
 using HY2026_Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -9,8 +10,9 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers & OpenAPI
+// Controllers, SignalR & OpenAPI
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 
 // Connection string setup (environment variable DATABASE_URL takes priority)
@@ -26,7 +28,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     {
         o.UseNetTopologySuite();
         o.MapEnum<Weekday>("weekday");
+        o.MapEnum<TripDirection>("trip_direction");
         o.MapEnum<MatchStatus>("match_status");
+        o.MapEnum<RideEventType>("ride_event_type");
+        o.MapEnum<UserGender>("user_gender");
     }));
 
 // Dependency Injection
@@ -38,8 +43,11 @@ builder.Services.AddScoped<IRideRequestService, RideRequestService>();
 builder.Services.AddScoped<IAdvertisementService, AdvertisementService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<ICarService, CarService>();
-builder.Services.AddScoped<IRideService, RideService>();
+builder.Services.AddScoped<IRideEventService, RideEventService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+
+// Singleton for In-Memory Chat
+builder.Services.AddSingleton<IChatService, InMemoryChatService>();
 
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] 
@@ -65,6 +73,19 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromMinutes(1)
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -79,6 +100,15 @@ using (var scope = app.Services.CreateScope())
     {
         await dbContext.Database.EnsureCreatedAsync();
         await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS role text DEFAULT 'User';");
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_gender') THEN 
+                    CREATE TYPE user_gender AS ENUM ('female', 'male', 'other'); 
+                END IF; 
+            END $$;");
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender user_gender;");
+        await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE advertisements ADD COLUMN IF NOT EXISTS estimated_arrival_time time without time zone DEFAULT '00:00:00';");
 
         // Seed default Admin user if admin@system.local does not exist
         var adminEmail = "admin@system.local";
@@ -91,6 +121,7 @@ using (var scope = app.Services.CreateScope())
                 defaultOrg = new Organization
                 {
                     Name = "Default Organization",
+                    Address = "Default Address",
                     Location = new NetTopologySuite.Geometries.Point(21.0122, 52.2297) { SRID = 4326 }
                 };
                 dbContext.Organizations.Add(defaultOrg);
@@ -137,6 +168,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
 

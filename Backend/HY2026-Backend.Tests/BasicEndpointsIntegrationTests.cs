@@ -60,9 +60,5 @@ public class BasicEndpointsIntegrationTests : IClassFixture<WebApplicationFactor
         // 5. Advertisements
         var adsResponse = await authenticatedClient.GetAsync("/api/advertisements");
         Assert.Equal(HttpStatusCode.OK, adsResponse.StatusCode);
-
-        // 6. Rides
-        var ridesResponse = await authenticatedClient.GetAsync("/api/rides");
-        Assert.Equal(HttpStatusCode.OK, ridesResponse.StatusCode);
     }
 }

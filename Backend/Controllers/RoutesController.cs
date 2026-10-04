@@ -38,7 +38,7 @@ public class RoutesController : ControllerBase
             var route = await _routeService.CreateRouteAsync(currentUserId.Value, dto);
             return CreatedAtAction(nameof(GetById), new { id = route.Id }, route);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
         {
             return BadRequest(new { message = ex.Message });
         }
@@ -58,6 +58,22 @@ public class RoutesController : ControllerBase
             return NotFound(new { message = $"Route with ID {id} was not found." });
         }
         return Ok(route);
+    }
+
+    /// <summary>
+    /// Returns full route stops (route_stops view): seq 0 = start, intermediate points, last = destination.
+    /// </summary>
+    [HttpGet("{id:long}/stops")]
+    [ProducesResponseType(typeof(IEnumerable<RouteStopDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<RouteStopDto>>> GetStops(long id)
+    {
+        var stops = await _routeService.GetRouteStopsAsync(id);
+        if (stops == null)
+        {
+            return NotFound(new { message = $"Route with ID {id} was not found." });
+        }
+        return Ok(stops);
     }
 
     /// <summary>

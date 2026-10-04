@@ -2,7 +2,6 @@ using HY2026_Backend.Data;
 using HY2026_Backend.DTOs;
 using HY2026_Backend.Models;
 using Microsoft.EntityFrameworkCore;
-using NetTopologySuite.Geometries;
 
 namespace HY2026_Backend.Services;
 
@@ -17,14 +16,18 @@ public class RideRequestService : IRideRequestService
 
     public async Task<RideRequestDto> CreateRideRequestAsync(long userId, CreateRideRequestDto createDto)
     {
-        var startPoint = new Point(createDto.StartP.Longitude, createDto.StartP.Latitude) { SRID = 4326 };
-        var endPoint = new Point(createDto.EndP.Longitude, createDto.EndP.Latitude) { SRID = 4326 };
+        var existingRequest = await _context.RideRequests
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.Direction == createDto.Direction);
+
+        if (existingRequest != null)
+        {
+            throw new InvalidOperationException($"User already has a ride request for direction '{createDto.Direction}'.");
+        }
 
         var request = new RideRequest
         {
             UserId = userId,
-            StartP = startPoint,
-            EndP = endPoint,
+            Direction = createDto.Direction,
             DepartureTime = createDto.DepartureTime,
             DaysOfWeek = createDto.DaysOfWeek,
             IsActive = true
@@ -74,8 +77,7 @@ public class RideRequestService : IRideRequestService
         {
             Id = request.Id,
             UserId = request.UserId,
-            StartP = new PointDto { Latitude = request.StartP.Y, Longitude = request.StartP.X },
-            EndP = new PointDto { Latitude = request.EndP.Y, Longitude = request.EndP.X },
+            Direction = request.Direction,
             DepartureTime = request.DepartureTime,
             DaysOfWeek = request.DaysOfWeek,
             IsActive = request.IsActive

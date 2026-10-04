@@ -20,27 +20,46 @@ public class MatchService : IMatchService
         int? maxDistanceMeters = null, 
         int? timeWindowMinutes = null)
     {
-        long targetRequestId;
+        RideRequest? targetRequest;
 
         if (requestId.HasValue && requestId.Value > 0)
         {
-            targetRequestId = requestId.Value;
+            targetRequest = await _context.RideRequests
+                .AsNoTracking()
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Id == requestId.Value);
+
+            if (targetRequest == null)
+            {
+                throw new InvalidOperationException($"Ride request with ID {requestId.Value} was not found.");
+            }
+
+            if (targetRequest.UserId != currentUserId)
+            {
+                throw new InvalidOperationException("You can only search matches for your own ride requests.");
+            }
         }
         else
         {
-            var activeRequest = await _context.RideRequests
+            targetRequest = await _context.RideRequests
                 .AsNoTracking()
+                .Include(r => r.User)
                 .Where(r => r.UserId == currentUserId && r.IsActive)
                 .OrderByDescending(r => r.Id)
                 .FirstOrDefaultAsync();
 
-            if (activeRequest == null)
+            if (targetRequest == null)
             {
                 throw new InvalidOperationException("No active ride request was found for the current user.");
             }
-
-            targetRequestId = activeRequest.Id;
         }
+
+        if (targetRequest.User?.HomeLocation == null)
+        {
+            throw new InvalidOperationException("Set your home address before searching for matches; without it you will not get any matches.");
+        }
+
+        var targetRequestId = targetRequest.Id;
 
         double radiusMeters = maxDistanceMeters.HasValue && maxDistanceMeters.Value > 0 
             ? maxDistanceMeters.Value 
@@ -55,7 +74,15 @@ public class MatchService : IMatchService
             .FromSqlInterpolated($"SELECT advertisement_id, driver_id, pickup_seq, dropoff_seq, pickup_distance_m, dropoff_distance_m, departure_time, free_seats FROM find_matches({targetRequestId}, {radiusMeters}, {intervalStr}::interval)")
             .ToListAsync();
 
-        return results;
+        // Defensive direction check: the ad's route direction must equal the request direction.
+        var adIds = results.Select(r => r.AdvertisementId).Distinct().ToList();
+        var validAdIds = await _context.Advertisements
+            .AsNoTracking()
+            .Where(a => adIds.Contains(a.Id) && a.Route!.Direction == targetRequest.Direction)
+            .Select(a => a.Id)
+            .ToListAsync();
+
+        return results.Where(r => validAdIds.Contains(r.AdvertisementId)).ToList();
     }
 
     public async Task<MatchDto> CreateMatchAsync(long currentUserId, CreateMatchDto createMatchDto)
@@ -107,6 +134,41 @@ public class MatchService : IMatchService
             throw new InvalidOperationException("Matching is only allowed between users from the same organization.");
         }
 
+        if (passenger.HomeLocation == null)
+        {
+            throw new InvalidOperationException("Set your home address before creating matches.");
+        }
+
+        if (advertisement.Route.Direction != request.Direction)
+        {
+            throw new InvalidOperationException("Route direction does not match the ride request direction.");
+        }
+
+        if (!advertisement.IsActive || !request.IsActive)
+        {
+            throw new InvalidOperationException("Advertisement and ride request must both be active.");
+        }
+
+        var stopSeqs = await _context.RouteStops
+            .AsNoTracking()
+            .Where(s => s.RouteId == advertisement.RouteId)
+            .Select(s => s.Seq)
+            .ToListAsync();
+
+        if (!stopSeqs.Contains(createMatchDto.PickupSeq) || !stopSeqs.Contains(createMatchDto.DropoffSeq))
+        {
+            throw new ArgumentException("Pickup and dropoff sequence must exist in the route stops of this advertisement.");
+        }
+
+        var duplicate = await _context.Matches.AnyAsync(m =>
+            m.AdvertisementId == createMatchDto.AdvertisementId &&
+            m.RequestId == createMatchDto.RequestId &&
+            m.Status != MatchStatus.Cancelled && m.Status != MatchStatus.Rejected);
+        if (duplicate)
+        {
+            throw new InvalidOperationException("A match for this advertisement and request already exists.");
+        }
+
         var match = new Match
         {
             AdvertisementId = createMatchDto.AdvertisementId,
@@ -154,6 +216,33 @@ public class MatchService : IMatchService
         if (!isPassenger && !isDriver)
         {
             throw new UnauthorizedAccessException("You do not have permission to update this match.");
+        }
+
+        if (status == MatchStatus.Pending)
+        {
+            throw new InvalidOperationException("Status cannot be set back to pending.");
+        }
+
+        if (match.Status == MatchStatus.Cancelled)
+        {
+            throw new InvalidOperationException("A cancelled match can no longer be changed.");
+        }
+
+        if (!isDriver && status != MatchStatus.Cancelled)
+        {
+            throw new UnauthorizedAccessException("Only the driver can accept or reject a match; a passenger can only cancel it.");
+        }
+
+        if (status == MatchStatus.Accepted && match.Status != MatchStatus.Accepted)
+        {
+            var seats = match.Advertisement!.Seats;
+            var accepted = await _context.Matches.CountAsync(m =>
+                m.AdvertisementId == match.AdvertisementId &&
+                m.Status == MatchStatus.Accepted && m.Id != match.Id);
+            if (accepted >= seats)
+            {
+                throw new InvalidOperationException($"Cannot accept: all {seats} seat(s) of this advertisement are already taken.");
+            }
         }
 
         match.Status = status;

@@ -32,9 +32,6 @@ public class Advertisement
     [Column("days_of_week")]
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
 
-    [Column("is_recurring")]
-    public bool IsRecurring { get; set; } = true;
-
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 

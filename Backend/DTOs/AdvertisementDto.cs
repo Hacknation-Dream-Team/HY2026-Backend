@@ -10,7 +10,6 @@ public class AdvertisementDto
     public short Seats { get; set; }
     public TimeOnly DepartureTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
-    public bool IsRecurring { get; set; }
     public bool IsActive { get; set; }
     public string? Description { get; set; }
 }
@@ -22,6 +21,5 @@ public class CreateAdvertisementDto
     public short Seats { get; set; }
     public TimeOnly DepartureTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
-    public bool IsRecurring { get; set; }
     public string? Description { get; set; }
 }

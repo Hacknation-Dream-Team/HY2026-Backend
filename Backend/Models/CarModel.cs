@@ -31,7 +31,4 @@ public class CarModel
 
     [Column("co2_g_km")]
     public int Co2GKm { get; set; }
-
-    [Column("seats")]
-    public short? Seats { get; set; }
 }

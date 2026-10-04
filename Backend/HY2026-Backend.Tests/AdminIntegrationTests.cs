@@ -86,6 +86,7 @@ public class AdminIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var createOrgDto = new CreateOrganizationDto
         {
             Name = "Test Admin Company",
+            Address = "ul. Testowa 10, Warszawa",
             Location = new PointDto { Latitude = 52.2297, Longitude = 21.0122 }
         };
 
@@ -99,6 +100,7 @@ public class AdminIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var updateOrgDto = new UpdateOrganizationDto
         {
             Name = "Test Admin Company Updated",
+            Address = "ul. Nowa 20, Kraków",
             Location = new PointDto { Latitude = 50.0647, Longitude = 19.9450 }
         };
 

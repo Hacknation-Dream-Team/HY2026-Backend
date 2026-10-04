@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HY2026_Backend.Models;
 
 namespace HY2026_Backend.DTOs;
 
@@ -18,8 +19,14 @@ public class CreateUserDto
 
     public string? Phone { get; set; }
 
+    public UserGender? Gender { get; set; }
+
     [Required(ErrorMessage = "Password is required")]
     public string Password { get; set; } = string.Empty;
 
     public string? ProfileImg { get; set; }
+
+    public string? HomeAddress { get; set; }
+
+    public PointDto? HomeLocation { get; set; }
 }

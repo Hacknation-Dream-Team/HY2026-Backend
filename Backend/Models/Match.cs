@@ -32,5 +32,5 @@ public class Match
     [Column("status")]
     public MatchStatus Status { get; set; } = MatchStatus.Pending;
 
-    public ICollection<Ride> Rides { get; set; } = new List<Ride>();
+    public ICollection<RideEvent> Events { get; set; } = new List<RideEvent>();
 }

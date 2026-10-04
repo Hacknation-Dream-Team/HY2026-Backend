@@ -62,6 +62,7 @@ public class UserService : IUserService
                 var defaultOrg = new Organization
                 {
                     Name = "Default Organization",
+                    Address = "Default Address",
                     Location = new Point(21.0122, 52.2297) { SRID = 4326 }
                 };
                 _context.Organizations.Add(defaultOrg);
@@ -80,8 +81,11 @@ public class UserService : IUserService
             Email = normalizedEmail,
             Role = HY2026_Backend.Helpers.UserRoles.User,
             Phone = createUserDto.Phone,
+            Gender = createUserDto.Gender,
             Password = passwordHash,
-            ProfileImg = createUserDto.ProfileImg
+            ProfileImg = createUserDto.ProfileImg,
+            HomeAddress = createUserDto.HomeAddress,
+            HomeLocation = createUserDto.HomeLocation == null ? null : new Point(createUserDto.HomeLocation.Longitude, createUserDto.HomeLocation.Latitude) { SRID = 4326 }
         };
 
         _context.Users.Add(user);
@@ -112,8 +116,29 @@ public class UserService : IUserService
         user.Name = updateUserDto.Name;
         user.Surname = updateUserDto.Surname;
         user.Phone = updateUserDto.Phone;
+        user.Gender = updateUserDto.Gender;
         user.ProfileImg = updateUserDto.ProfileImg;
+        user.HomeAddress = updateUserDto.HomeAddress;
+        if (updateUserDto.HomeLocation != null)
+        {
+            user.HomeLocation = new Point(updateUserDto.HomeLocation.Longitude, updateUserDto.HomeLocation.Latitude) { SRID = 4326 };
+        }
 
+        await _context.SaveChangesAsync();
+
+        return MapToDto(user);
+    }
+
+    public async Task<UserDto?> UpdateHomeAddressAsync(long id, UpdateHomeAddressDto dto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+        {
+            return null;
+        }
+
+        user.HomeAddress = dto.HomeAddress.Trim();
+        user.HomeLocation = new Point(dto.HomeLocation.Longitude, dto.HomeLocation.Latitude) { SRID = 4326 };
         await _context.SaveChangesAsync();
 
         return MapToDto(user);
@@ -181,6 +206,10 @@ public class UserService : IUserService
         Email = user.Email,
         Role = string.IsNullOrWhiteSpace(user.Role) ? HY2026_Backend.Helpers.UserRoles.User : user.Role,
         Phone = user.Phone,
-        ProfileImg = user.ProfileImg
+        Gender = user.Gender,
+        ProfileImg = user.ProfileImg,
+        HomeAddress = user.HomeAddress,
+        HomeLocation = user.HomeLocation == null ? null : new PointDto { Latitude = user.HomeLocation.Y, Longitude = user.HomeLocation.X },
+        Warning = user.HomeLocation == null ? "Home address is not set; you will not receive any matches until you set it." : null
     };
 }

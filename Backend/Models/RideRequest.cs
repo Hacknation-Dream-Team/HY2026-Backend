@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NetTopologySuite.Geometries;
 
 namespace HY2026_Backend.Models;
 
@@ -18,13 +17,8 @@ public class RideRequest
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
-    [Required]
-    [Column("start_p", TypeName = "geography(Point, 4326)")]
-    public Point StartP { get; set; } = null!;
-
-    [Required]
-    [Column("end_p", TypeName = "geography(Point, 4326)")]
-    public Point EndP { get; set; } = null!;
+    [Column("direction")]
+    public TripDirection Direction { get; set; }
 
     [Column("departure_time")]
     public TimeOnly DepartureTime { get; set; }

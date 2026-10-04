@@ -484,6 +484,7 @@
             <tr>
               <th>ID</th>
               <th>Nazwa Organizacji</th>
+              <th>Adres</th>
               <th>Szerokość (Lat)</th>
               <th>Długość (Lng)</th>
               <th>Akcje</th>
@@ -533,8 +534,8 @@
             <tr>
               <th>ID Trasy</th>
               <th>ID Kierowcy</th>
-              <th>Punkt Startowy</th>
-              <th>Punkt Docelowy</th>
+              <th>Kierunek</th>
+              <th>Przystanki (lat, lng)</th>
               <th>Liczba Przystanków</th>
             </tr>
           </thead>
@@ -558,7 +559,7 @@
               <th>ID Trasy</th>
               <th>Godzina Odjazdu</th>
               <th>Miejsca</th>
-              <th>Cykliczne</th>
+              <th>Aktywne</th>
               <th>Dni Tygodnia</th>
             </tr>
           </thead>
@@ -580,8 +581,8 @@
             <tr>
               <th>ID Zapytania</th>
               <th>ID Pasażera</th>
-              <th>Start (Lat, Lng)</th>
-              <th>Meta (Lat, Lng)</th>
+              <th>Kierunek</th>
+              <th>Dni</th>
               <th>Godzina Odjazdu</th>
               <th>Status</th>
             </tr>
@@ -627,6 +628,10 @@
       <div class="form-group">
         <label>Nazwa Organizacji</label>
         <input type="text" id="modalOrgName" placeholder="np. Acme Corp" required />
+      </div>
+      <div class="form-group">
+        <label>Adres</label>
+        <input type="text" id="modalOrgAddress" placeholder="np. ul. Jagiellońska 17, Kraków" required />
       </div>
       <div class="form-group">
         <label>Szerokość Geograficzna (Latitude / Y)</label>
@@ -752,7 +757,7 @@
         document.getElementById('statAds').textContent = stats.totalAdvertisements;
         document.getElementById('statReqs').textContent = stats.totalRideRequests;
         document.getElementById('statMatches').textContent = stats.totalMatches;
-        document.getElementById('statRides').textContent = stats.totalRides;
+        document.getElementById('statRides').textContent = stats.totalRideEvents;
       } catch (e) {}
     }
 
@@ -765,10 +770,11 @@
           <tr>
             <td>${o.id}</td>
             <td><strong>${o.name}</strong></td>
+            <td>${o.address || '-'}</td>
             <td>${o.location.latitude}</td>
             <td>${o.location.longitude}</td>
             <td>
-              <button class="btn btn-secondary btn-sm" onclick="editOrg(${o.id}, '${o.name}', ${o.location.latitude}, ${o.location.longitude})">Edytuj</button>
+              <button class="btn btn-secondary btn-sm" onclick='editOrg(${o.id}, ${JSON.stringify(o.name)}, ${JSON.stringify(o.address || "")}, ${o.location.latitude}, ${o.location.longitude})'>Edytuj</button>
               <button class="btn btn-danger btn-sm" onclick="deleteOrg(${o.id})">Usuń</button>
             </td>
           </tr>
@@ -809,8 +815,8 @@
           <tr>
             <td>${r.id}</td>
             <td>User #${r.userId}</td>
-            <td>${r.startPoint ? `${r.startPoint.latitude}, ${r.startPoint.longitude}` : '-'}</td>
-            <td>${r.endPoint ? `${r.endPoint.latitude}, ${r.endPoint.longitude}` : '-'}</td>
+            <td>${r.direction}</td>
+            <td>${r.points && r.points.length ? r.points.map(p => `${p.latitude}, ${p.longitude}`).join(' → ') : '-'}</td>
             <td>${r.points ? r.points.length : 0} pkt</td>
           </tr>
         `).join('');
@@ -828,7 +834,7 @@
             <td>Route #${a.routeId}</td>
             <td>${a.departureTime}</td>
             <td>${a.seats}</td>
-            <td>${a.isRecurring ? 'Tak' : 'Nie'}</td>
+            <td>${a.isActive ? 'Tak' : 'Nie'}</td>
             <td>${a.daysOfWeek ? a.daysOfWeek.join(', ') : '-'}</td>
           </tr>
         `).join('');
@@ -844,8 +850,8 @@
           <tr>
             <td>${r.id}</td>
             <td>User #${r.userId}</td>
-            <td>${r.startP.latitude.toFixed(4)}, ${r.startP.longitude.toFixed(4)}</td>
-            <td>${r.endP.latitude.toFixed(4)}, ${r.endP.longitude.toFixed(4)}</td>
+            <td>${r.direction}</td>
+            <td>${r.daysOfWeek ? r.daysOfWeek.join(', ') : '-'}</td>
             <td>${r.departureTime}</td>
             <td>${r.isActive ? 'Aktywne' : 'Nieaktywne'}</td>
           </tr>
@@ -876,15 +882,17 @@
       document.getElementById('orgModalTitle').textContent = 'Dodaj Nową Organizację';
       document.getElementById('modalOrgId').value = '';
       document.getElementById('modalOrgName').value = '';
+      document.getElementById('modalOrgAddress').value = '';
       document.getElementById('modalOrgLat').value = '52.2297';
       document.getElementById('modalOrgLng').value = '21.0122';
       document.getElementById('orgModal').classList.add('active');
     }
 
-    function editOrg(id, name, lat, lng) {
+    function editOrg(id, name, address, lat, lng) {
       document.getElementById('orgModalTitle').textContent = `Edytuj Organizację #${id}`;
       document.getElementById('modalOrgId').value = id;
       document.getElementById('modalOrgName').value = name;
+      document.getElementById('modalOrgAddress').value = address;
       document.getElementById('modalOrgLat').value = lat;
       document.getElementById('modalOrgLng').value = lng;
       document.getElementById('orgModal').classList.add('active');
@@ -897,15 +905,16 @@
     async function saveOrg() {
       const id = document.getElementById('modalOrgId').value;
       const name = document.getElementById('modalOrgName').value;
+      const address = document.getElementById('modalOrgAddress').value.trim();
       const latitude = parseFloat(document.getElementById('modalOrgLat').value);
       const longitude = parseFloat(document.getElementById('modalOrgLng').value);
 
-      if (!name || isNaN(latitude) || isNaN(longitude)) {
+      if (!name || !address || isNaN(latitude) || isNaN(longitude)) {
         alert('Wypełnij wszystkie pola poprawnie.');
         return;
       }
 
-      const body = { name, location: { latitude, longitude } };
+      const body = { name, address, location: { latitude, longitude } };
       const url = id ? `/api/admin/organizations/${id}` : '/api/admin/organizations';
       const method = id ? 'PUT' : 'POST';
 

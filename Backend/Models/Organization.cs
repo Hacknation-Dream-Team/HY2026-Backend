@@ -16,6 +16,10 @@ public class Organization
     [Column("name")]
     public string Name { get; set; } = string.Empty;
 
+    [Required]
+    [Column("address")]
+    public string Address { get; set; } = string.Empty;
+
     [Column("location", TypeName = "geography(Point, 4326)")]
     public Point Location { get; set; } = null!;
 

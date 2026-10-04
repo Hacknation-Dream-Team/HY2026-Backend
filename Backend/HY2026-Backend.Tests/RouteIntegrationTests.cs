@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using HY2026_Backend.DTOs;
+using HY2026_Backend.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -45,13 +46,13 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var authenticatedClient = _factory.CreateClient();
         authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwtToken);
 
-        // STEP 2: Create a route with Points list
+        // STEP 2: Create a route with Direction and MiddlePoints
         var createRouteDto = new CreateRouteDto
         {
-            Points = new List<PointDto>
+            Direction = TripDirection.ToWork,
+            MiddlePoints = new List<PointDto>
             {
-                new PointDto { Latitude = 52.2297, Longitude = 21.0122 }, // Warsaw (StartP)
-                new PointDto { Latitude = 50.0647, Longitude = 19.9450 }  // Krakow (EndP)
+                new PointDto { Latitude = 52.2297, Longitude = 21.0122 }
             },
             LookingFor = "Passenger / Pasażer"
         };
@@ -63,12 +64,10 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         Assert.NotNull(createdRoute);
         Assert.True(createdRoute.Id > 0);
         Assert.Equal(userId, createdRoute.UserId);
-        Assert.Equal(2, createdRoute.Points.Count);
+        Assert.Equal(TripDirection.ToWork, createdRoute.Direction);
+        Assert.Single(createdRoute.Points);
         Assert.Equal(52.2297, createdRoute.Points[0].Latitude, 4);
         Assert.Equal(21.0122, createdRoute.Points[0].Longitude, 4);
-        Assert.Equal(50.0647, createdRoute.Points[1].Latitude, 4);
-        Assert.Equal(19.9450, createdRoute.Points[1].Longitude, 4);
-        Assert.Equal("Passenger / Pasażer", createdRoute.LookingFor);
 
         var routeId = createdRoute.Id;
 
@@ -80,7 +79,6 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         Assert.NotNull(fetchedRoute);
         Assert.Equal(routeId, fetchedRoute.Id);
         Assert.Equal(userId, fetchedRoute.UserId);
-        Assert.Equal(2, fetchedRoute.Points.Count);
 
         // STEP 4: Get all routes
         var getAllResponse = await client.GetAsync($"/api/routes?userId={userId}");
@@ -122,16 +120,15 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
         var authenticatedClient = _factory.CreateClient();
         authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResult.Token);
 
-        // Create route with start, 2 middle points, and end
+        // Create route with direction ToHome and 2 middle points
         var createRouteDto = new CreateRouteDto
         {
-            StartPoint = new PointDto { Latitude = 52.2297, Longitude = 21.0122 }, // Warsaw
+            Direction = TripDirection.ToHome,
             MiddlePoints = new List<PointDto>
             {
                 new PointDto { Latitude = 51.7592, Longitude = 19.4560 }, // Lodz
                 new PointDto { Latitude = 51.1100, Longitude = 17.0325 }  // Wroclaw
-            },
-            EndPoint = new PointDto { Latitude = 50.0647, Longitude = 19.9450 }   // Krakow
+            }
         };
 
         var createResponse = await authenticatedClient.PostAsJsonAsync("/api/routes", createRouteDto);
@@ -139,11 +136,9 @@ public class RouteIntegrationTests : IClassFixture<WebApplicationFactory<Program
 
         var createdRoute = await createResponse.Content.ReadFromJsonAsync<RouteDto>();
         Assert.NotNull(createdRoute);
-        Assert.Equal(4, createdRoute.Points.Count);
-        Assert.NotNull(createdRoute.StartPoint);
-        Assert.NotNull(createdRoute.EndPoint);
-        Assert.Equal(2, createdRoute.MiddlePoints.Count);
-        Assert.Equal(51.7592, createdRoute.MiddlePoints[0].Latitude, 4);
-        Assert.Equal(51.1100, createdRoute.MiddlePoints[1].Latitude, 4);
+        Assert.Equal(TripDirection.ToHome, createdRoute.Direction);
+        Assert.Equal(2, createdRoute.Points.Count);
+        Assert.Equal(51.7592, createdRoute.Points[0].Latitude, 4);
+        Assert.Equal(51.1100, createdRoute.Points[1].Latitude, 4);
     }
 }

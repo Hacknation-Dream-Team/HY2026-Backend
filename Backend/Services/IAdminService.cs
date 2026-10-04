@@ -11,5 +11,5 @@ public interface IAdminService
     Task<IEnumerable<AdvertisementDto>> GetAllAdvertisementsAsync();
     Task<IEnumerable<RideRequestDto>> GetAllRideRequestsAsync();
     Task<IEnumerable<MatchDto>> GetAllMatchesAsync();
-    Task<IEnumerable<RideDto>> GetAllRidesAsync();
+    Task<IEnumerable<RideEventDto>> GetAllRideEventsAsync();
 }
