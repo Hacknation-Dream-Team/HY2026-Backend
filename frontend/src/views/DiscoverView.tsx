@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search } from 'lucide-react';
+import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2 } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
 import { api } from '../api';
@@ -178,6 +178,9 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   const [routePoints, setRoutePoints] = useState<any[]>([]);
   const [midAddress, setMidAddress] = useState<string>('');
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
     api.getOrganizations().then(setOrganizations).catch(console.error);
@@ -220,11 +223,13 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
   };
 
   const handleSubmit = async () => {
+    setErrorMessage(null);
+    if (routePoints.length < 2) {
+      setErrorMessage('Trasa nie została jeszcze wyznaczona. Upewnij się, że masz ustawiony adres domowy i organizację.');
+      return;
+    }
+    setLoading(true);
     try {
-      if (routePoints.length < 2) {
-        alert('Trasa nie została jeszcze wyznaczona. Upewnij się, że masz ustawiony adres domowy i organizację.');
-        return;
-      }
       const targetDirection = direction === 'home-to-work' ? 'ToWork' : 'ToHome';
 
       // Clean up previous route for this direction if it already exists
@@ -253,15 +258,17 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
         departureTime: departureTime.length === 5 ? `${departureTime}:00` : departureTime,
         daysOfWeek: mapDaysToEnum(selectedDays)
       });
-      alert('Przejazd został ogłoszony!');
-      onBack();
+      
+      setIsSuccessModalOpen(true);
     } catch (e: any) {
-      alert('Błąd tworzenia ogłoszenia: ' + e.message);
+      setErrorMessage(e.message || 'Wystąpił błąd podczas tworzenia ogłoszenia');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fade-in" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="fade-in" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
           <ArrowLeft size={24} />
@@ -278,55 +285,177 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
         </button>
       </div>
 
-      <MapRoute 
+      {/* Map Module */}
+      <MapRoute
         startAddress={startAddress}
         endAddress={endAddress}
         startCoords={startCoords}
         endCoords={endCoords}
         midAddress={midAddress}
-        setMidAddress={setMidAddress}
-        title="Trasa przejazdu (Kliknij mapę, by dodać punkt pośredni)"
-        readOnlyStartEnd={true}
+        onMidAddressChange={setMidAddress}
         onRouteCalculated={handleRouteCalculated}
       />
 
       <div className="card" style={{ padding: '20px', borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h2 style={{ fontSize: '16px', margin: 0 }}>Harmonogram i godziny</h2>
+        
+        {/* Days selector */}
         <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Dni tygodnia</label>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map((day) => {
-              const isSelected = selectedDays.includes(day);
-              return (
-                <div 
-                  key={day} 
-                  onClick={() => toggleDay(day)}
-                  style={{ padding: '8px 12px', border: '1px solid #ced4da', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', backgroundColor: isSelected ? '#198754' : '#f8f9fa', color: isSelected ? 'white' : '#212529', userSelect: 'none' }}
-                >
-                  {day}
-                </div>
-              );
-            })}
+          <label style={{ fontSize: '12px', color: '#6c757d', marginBottom: '8px', display: 'block' }}>Dni tygodnia</label>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map(day => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDay(day)}
+                style={{
+                  flex: 1,
+                  padding: '8px 0',
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: selectedDays.includes(day) ? '#0d6efd' : '#dee2e6',
+                  backgroundColor: selectedDays.includes(day) ? '#e7f1ff' : 'white',
+                  color: selectedDays.includes(day) ? '#0d6efd' : '#212529',
+                  fontWeight: selectedDays.includes(day) ? 'bold' : 'normal',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                {day}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Time settings */}
+        <div style={{ display: 'flex', gap: '12px' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Godzina wyjazdu</label>
-            <input type="time" value={departureTime} onChange={e => setDepartureTime(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+            <label style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px', display: 'block' }}>Godzina odjazdu</label>
+            <input 
+              type="time" 
+              value={departureTime} 
+              onChange={e => setDepartureTime(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ced4da' }}
+            />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Szacowany dojazd</label>
-            <input type="time" value={calculateArrival(departureTime, durationMins)} readOnly style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none', backgroundColor: '#e9ecef', color: '#6c757d' }} />
+            <label style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px', display: 'block' }}>Szacowany przyjazd</label>
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#f8f9fa', border: '1px solid #e9ecef', color: '#495057', fontWeight: 'bold' }}>
+              ~{calculateArrival(departureTime, durationMins)} ({durationMins} min)
+            </div>
           </div>
         </div>
 
-        <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#198754' }} onClick={handleSubmit}>
-          Utwórz trasę i ogłoś przejazd
+        {errorMessage && (
+          <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: '#f8d7da', color: '#721c24', fontSize: '14px', border: '1px solid #f5c6cb' }}>
+            {errorMessage}
+          </div>
+        )}
+
+        <button 
+          disabled={loading}
+          className="btn-primary" 
+          style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#198754', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }} 
+          onClick={handleSubmit}
+        >
+          {loading ? 'Ogłaszanie przejazdu...' : 'Utwórz trasę i ogłoś przejazd'}
         </button>
       </div>
+
+      {/* Success Modal */}
+      {isSuccessModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '24px',
+            padding: '32px 24px',
+            maxWidth: '380px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: '#d1e7dd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0f5132'
+            }}>
+              <CheckCircle2 size={36} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#212529' }}>Przejazd ogłoszony!</h3>
+              <p style={{ margin: 0, fontSize: '14px', color: '#6c757d', lineHeight: '1.4' }}>
+                Twoja trasa ({direction === 'home-to-work' ? 'Dom → Praca' : 'Praca → Dom'}) została pomyślnie opublikowana dla współpracowników.
+              </p>
+            </div>
+
+            <div style={{
+              width: '100%',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#495057',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              border: '1px solid #e9ecef'
+            }}>
+              <div><strong>Odjazd:</strong> {departureTime} (szac. ~{calculateArrival(departureTime, durationMins)})</div>
+              <div><strong>Dni:</strong> {selectedDays.join(', ')}</div>
+              <div><strong>Punkty trasy:</strong> {routePoints.length}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                backgroundColor: '#198754',
+                color: 'white',
+                border: 'none',
+                fontWeight: 600,
+                fontSize: '15px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(25, 135, 84, 0.2)',
+                marginTop: '6px'
+              }}
+            >
+              Świetnie, przejdź dalej
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function SearchRideView({ onBack }: { onBack: () => void }) {
   const [hasSearched, setHasSearched] = useState(false);
