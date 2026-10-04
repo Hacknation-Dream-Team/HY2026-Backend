@@ -112,6 +112,37 @@ export const api = {
     return handleResponse(res, 'Fetching ads failed');
   },
 
+  async deleteAdvertisement(id: number | string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/advertisements/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok && res.status !== 204) {
+      return handleResponse(res, 'Deleting advertisement failed');
+    }
+    return true;
+  },
+
+  async updateAdvertisement(id: number | string, data: any) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/advertisements/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res, 'Update advertisement failed');
+  },
+
+  async getRouteById(id: number | string) {
+    const res = await fetch(`${API_BASE}/routes/${id}`);
+    if (!res.ok) throw new Error('Fetching route failed');
+    return res.json();
+  },
+
   async createMatch(data: any) {
     const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}/matches`, {
@@ -148,6 +179,19 @@ export const api = {
       return handleResponse(res, 'Deleting request failed');
     }
     return true;
+  },
+
+  async updateRideRequest(id: number | string, data: any) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/riderequests/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res, 'Update ride request failed');
   },
 
   async getRideRequests() {

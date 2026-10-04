@@ -8,4 +8,5 @@ public interface IRideRequestService
     Task<IEnumerable<RideRequestDto>> GetRideRequestsAsync(long userId);
     Task<RideRequestDto?> GetRideRequestAsync(long id, long userId);
     Task<bool> DeleteRideRequestAsync(long id, long userId);
+    Task<RideRequestDto?> UpdateRideRequestAsync(long id, long userId, UpdateRideRequestDto updateDto);
 }

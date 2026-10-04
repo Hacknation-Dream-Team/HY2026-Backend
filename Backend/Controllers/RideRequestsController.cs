@@ -64,4 +64,21 @@ public class RideRequestsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<RideRequestDto>> UpdateRideRequest(long id, UpdateRideRequestDto updateDto)
+    {
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            var request = await _rideRequestService.UpdateRideRequestAsync(id, userId, updateDto);
+            if (request == null)
+                return NotFound();
+            return Ok(request);
+        }
+        catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

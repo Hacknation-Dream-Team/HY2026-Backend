@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2 } from 'lucide-react';
+import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2, Eye, Edit2, Trash2, Calendar, Users, X, AlertTriangle } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
 import { api } from '../api';
@@ -46,28 +46,66 @@ export function DiscoverView({ user }: { user?: any }) {
       </div>
 
       {roleTab === 'driver' ? (
-        <DriverSection onOffer={handleOffer} />
+        <DriverSection onOffer={handleOffer} user={user} />
       ) : (
-        <PassengerSection onSearch={() => setAction('search')} />
+        <PassengerSection onSearch={() => setAction('search')} user={user} />
       )}
     </div>
   );
 }
 
-function DriverSection({ onOffer }: { onOffer: () => void }) {
-  const [ads, setAds] = useState<any[]>([]);
+function formatDays(days: any[]) {
+  if (!days || !Array.isArray(days)) return '';
+  const map: Record<string | number, string> = {
+    0: 'Pn', 1: 'Wt', 2: 'Śr', 3: 'Cz', 4: 'Pt', 5: 'Sb', 6: 'Nd',
+    'Mon': 'Pn', 'Tue': 'Wt', 'Wed': 'Śr', 'Thu': 'Cz', 'Fri': 'Pt', 'Sat': 'Sb', 'Sun': 'Nd',
+    'Monday': 'Pn', 'Tuesday': 'Wt', 'Wednesday': 'Śr', 'Thursday': 'Cz', 'Friday': 'Pt', 'Saturday': 'Sb', 'Sunday': 'Nd'
+  };
+  return days.map(d => map[d] ?? d).join(', ');
+}
 
-  useEffect(() => {
+function DriverSection({ onOffer, user }: { onOffer: () => void, user?: any }) {
+  const [ads, setAds] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [selectedAd, setSelectedAd] = useState<any | null>(null);
+  const [editingAd, setEditingAd] = useState<any | null>(null);
+  const [deletingAd, setDeletingAd] = useState<any | null>(null);
+
+  const fetchAds = useCallback(() => {
     api.getAdvertisements().then(setAds).catch(console.error);
+    api.getRoutes().then(setRoutes).catch(console.error);
+    api.getOrganizations().then(setOrganizations).catch(console.error);
   }, []);
 
-  const formatDays = (days: any[]) => {
-    if (!days || !Array.isArray(days)) return '';
-    const map: Record<string | number, string> = {
-      0: 'Pn', 1: 'Wt', 2: 'Śr', 3: 'Cz', 4: 'Pt', 5: 'Sb', 6: 'Nd',
-      'Mon': 'Pn', 'Tue': 'Wt', 'Wed': 'Śr', 'Thu': 'Cz', 'Fri': 'Pt', 'Sat': 'Sb', 'Sun': 'Nd'
-    };
-    return days.map(d => map[d] ?? d).join(', ');
+  useEffect(() => {
+    fetchAds();
+  }, [fetchAds]);
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingAd) return;
+    try {
+      await api.deleteAdvertisement(deletingAd.id);
+      setDeletingAd(null);
+      if (selectedAd?.id === deletingAd.id) setSelectedAd(null);
+      fetchAds();
+    } catch (err: any) {
+      alert('Błąd podczas usuwania: ' + (err.message || err));
+    }
+  };
+
+  const handleSaveEdit = async (updatedData: any) => {
+    if (!editingAd) return;
+    try {
+      await api.updateAdvertisement(editingAd.id, updatedData);
+      setEditingAd(null);
+      if (selectedAd?.id === editingAd.id) {
+        setSelectedAd((prev: any) => prev ? { ...prev, ...updatedData } : null);
+      }
+      fetchAds();
+    } catch (err: any) {
+      alert('Błąd podczas zapisywania: ' + (err.message || err));
+    }
   };
 
   return (
@@ -92,21 +130,161 @@ function DriverSection({ onOffer }: { onOffer: () => void }) {
             Nie masz jeszcze żadnych zaplanowanych przejazdów.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {ads.map(ad => (
-              <div key={ad.id} style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e9ecef' }}>
-                <div style={{ fontWeight: 'bold' }}>Wyjazd o: {ad.departureTime}</div>
-                <div style={{ fontSize: '13px', color: '#6c757d', marginTop: '4px' }}>Dni: {formatDays(ad.daysOfWeek)}</div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {ads.map(ad => {
+              const route = routes.find(r => r.id === ad.routeId);
+              const directionName = (route?.direction === 0 || route?.direction === 'ToWork' || ad.direction === 'ToWork') 
+                ? 'Dom ➔ Praca' : 'Praca ➔ Dom';
+
+              return (
+                <div 
+                  key={ad.id} 
+                  style={{ 
+                    padding: '16px', 
+                    backgroundColor: 'white', 
+                    borderRadius: '16px', 
+                    border: '1px solid #e9ecef',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '20px', 
+                      backgroundColor: '#e7f1ff', 
+                      color: '#0d6efd', 
+                      fontSize: '12px', 
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <MapPin size={13} /> {directionName}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#198754', fontWeight: 'bold', backgroundColor: '#d1e7dd', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Users size={13} /> {ad.seats} {ad.seats === 1 ? 'miejsce' : 'miejsca'}
+                    </span>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedAd(ad)} 
+                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px' }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#212529', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} color="#0d6efd" /> Wyjazd o: {ad.departureTime}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6c757d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={16} color="#6c757d" /> Dni: <strong>{formatDays(ad.daysOfWeek)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid #f1f3f5' }}>
+                    <button 
+                      onClick={() => setSelectedAd(ad)} 
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', border: '1px solid #cfe2ff', backgroundColor: '#eff6ff', color: '#0d6efd', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Eye size={15} /> Szczegóły / Trasa
+                    </button>
+                    <button 
+                      onClick={() => setEditingAd(ad)} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #dee2e6', backgroundColor: '#f8f9fa', color: '#495057', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Edit2 size={15} /> Edytuj
+                    </button>
+                    <button 
+                      onClick={() => setDeletingAd(ad)} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Trash2 size={15} /> Usuń
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {selectedAd && (
+        <RideDetailsModal
+          item={selectedAd}
+          isDriver={true}
+          user={user}
+          organizations={organizations}
+          routes={routes}
+          onClose={() => setSelectedAd(null)}
+          onEdit={() => { setEditingAd(selectedAd); setSelectedAd(null); }}
+          onDelete={() => { setDeletingAd(selectedAd); setSelectedAd(null); }}
+        />
+      )}
+
+      {editingAd && (
+        <EditRideModal
+          item={editingAd}
+          isDriver={true}
+          onClose={() => setEditingAd(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+
+      {deletingAd && (
+        <DeleteConfirmModal
+          title="Usuń przejazd"
+          message="Czy na pewno chcesz usunąć ten zaplanowany przejazd? Usunięcie spowoduje anulowanie ogłoszenia."
+          onClose={() => setDeletingAd(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </div>
   );
 }
 
-function PassengerSection({ onSearch }: { onSearch: () => void }) {
+function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any }) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [selectedReq, setSelectedReq] = useState<any | null>(null);
+  const [editingReq, setEditingReq] = useState<any | null>(null);
+  const [deletingReq, setDeletingReq] = useState<any | null>(null);
+
+  const fetchRequests = useCallback(() => {
+    api.getRideRequests().then(setRequests).catch(console.error);
+    api.getOrganizations().then(setOrganizations).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingReq) return;
+    try {
+      await api.deleteRideRequest(deletingReq.id);
+      setDeletingReq(null);
+      if (selectedReq?.id === deletingReq.id) setSelectedReq(null);
+      fetchRequests();
+    } catch (err: any) {
+      alert('Błąd podczas usuwania: ' + (err.message || err));
+    }
+  };
+
+  const handleSaveEdit = async (updatedData: any) => {
+    if (!editingReq) return;
+    try {
+      await api.updateRideRequest(editingReq.id, updatedData);
+      setEditingReq(null);
+      if (selectedReq?.id === editingReq.id) {
+        setSelectedReq((prev: any) => prev ? { ...prev, ...updatedData } : null);
+      }
+      fetchRequests();
+    } catch (err: any) {
+      alert('Błąd podczas zapisywania: ' + (err.message || err));
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <button 
@@ -121,9 +299,122 @@ function PassengerSection({ onSearch }: { onSearch: () => void }) {
         </div>
       </button>
 
-      <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px dashed #ced4da' }}>
-        Twoje zapisane trasy i historia przejazdów pojawią się tutaj.
+      <div>
+        <h2 style={{ fontSize: '18px', marginBottom: '12px', color: '#212529' }}>Zaplanowane prośby o przejazd</h2>
+        
+        {requests.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px dashed #ced4da' }}>
+            Nie masz jeszcze żadnych zapisanych prośb o przejazd.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {requests.map(req => {
+              const directionName = (req.direction === 0 || req.direction === 'ToWork') 
+                ? 'Dom ➔ Praca' : 'Praca ➔ Dom';
+
+              return (
+                <div 
+                  key={req.id} 
+                  style={{ 
+                    padding: '16px', 
+                    backgroundColor: 'white', 
+                    borderRadius: '16px', 
+                    border: '1px solid #e9ecef',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '20px', 
+                      backgroundColor: '#e7f1ff', 
+                      color: '#0d6efd', 
+                      fontSize: '12px', 
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <MapPin size={13} /> {directionName}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#0d6efd', fontWeight: 'bold', backgroundColor: '#e7f1ff', padding: '4px 10px', borderRadius: '20px' }}>
+                      Pasażer
+                    </span>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedReq(req)} 
+                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px' }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#212529', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} color="#0d6efd" /> Preferowany odjazd: {req.departureTime}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6c757d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={16} color="#6c757d" /> Dni: <strong>{formatDays(req.daysOfWeek)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid #f1f3f5' }}>
+                    <button 
+                      onClick={() => setSelectedReq(req)} 
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', border: '1px solid #cfe2ff', backgroundColor: '#eff6ff', color: '#0d6efd', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Eye size={15} /> Szczegóły / Trasa
+                    </button>
+                    <button 
+                      onClick={() => setEditingReq(req)} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #dee2e6', backgroundColor: '#f8f9fa', color: '#495057', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Edit2 size={15} /> Edytuj
+                    </button>
+                    <button 
+                      onClick={() => setDeletingReq(req)} 
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      <Trash2 size={15} /> Usuń
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {selectedReq && (
+        <RideDetailsModal
+          item={selectedReq}
+          isDriver={false}
+          user={user}
+          organizations={organizations}
+          routes={[]}
+          onClose={() => setSelectedReq(null)}
+          onEdit={() => { setEditingReq(selectedReq); setSelectedReq(null); }}
+          onDelete={() => { setDeletingReq(selectedReq); setSelectedReq(null); }}
+        />
+      )}
+
+      {editingReq && (
+        <EditRideModal
+          item={editingReq}
+          isDriver={false}
+          onClose={() => setEditingReq(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+
+      {deletingReq && (
+        <DeleteConfirmModal
+          title="Usuń prośbę o przejazd"
+          message="Czy na pewno chcesz usunąć tę zaplanowaną prośbę o przejazd?"
+          onClose={() => setDeletingReq(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </div>
   );
 }
@@ -769,4 +1060,403 @@ function tabStyle(isActive: boolean) {
     transition: 'all 0.2s', cursor: 'pointer', fontSize: '14px',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
   };
+}
+
+function RideDetailsModal({
+  item,
+  isDriver,
+  user,
+  organizations,
+  routes,
+  onClose,
+  onEdit,
+  onDelete
+}: {
+  item: any;
+  isDriver: boolean;
+  user?: any;
+  organizations: any[];
+  routes: any[];
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const route = isDriver ? routes.find(r => r.id === item.routeId) : null;
+  const isToWork = (route?.direction === 0 || route?.direction === 'ToWork' || item.direction === 'ToWork' || item.direction === 0);
+  
+  const userOrg = organizations.find(o => o.id === user?.organizationId || o.name === user?.organizationName);
+  const home = user?.homeAddress || user?.homeAddressText || 'Adres domowy';
+  const org = userOrg?.address || user?.organizationName || 'Miejsce pracy';
+
+  const homeCoords = user?.homeLocation ? { lat: user.homeLocation.latitude, lng: user.homeLocation.longitude } : null;
+  const orgCoords = userOrg?.location ? { lat: userOrg.location.latitude, lng: userOrg.location.longitude } : null;
+
+  const startAddress = isToWork ? home : org;
+  const endAddress = isToWork ? org : home;
+  const startCoords = isToWork ? homeCoords : orgCoords;
+  const endCoords = isToWork ? orgCoords : homeCoords;
+
+  const formattedDeparture = typeof item.departureTime === 'string' ? item.departureTime.substring(0, 5) : item.departureTime;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      zIndex: 9999,
+      animation: 'fadeIn 0.2s ease-out'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '24px',
+        width: '100%',
+        maxWidth: '520px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '12px', color: '#0d6efd', fontWeight: 'bold', backgroundColor: '#e7f1ff', padding: '3px 8px', borderRadius: '12px', display: 'inline-block', marginBottom: '4px' }}>
+              {isDriver ? 'Ogłoszenie Kierowcy' : 'Prośba Pasażera'}
+            </span>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#212529' }}>
+              Trasa: {isToWork ? 'Dom ➔ Praca' : 'Praca ➔ Dom'}
+            </h2>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#6c757d', borderRadius: '50%' }}>
+            <X size={22} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Map */}
+          <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid #dee2e6' }}>
+            <MapRoute
+              startAddress={startAddress}
+              endAddress={endAddress}
+              startCoords={startCoords}
+              endCoords={endCoords}
+              readOnlyStartEnd={true}
+            />
+          </div>
+
+          {/* Key information */}
+          <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '16px', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#212529' }}>
+              <Clock size={18} color="#0d6efd" />
+              <span>Godzina wyjazdu: <strong>{formattedDeparture}</strong></span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#212529' }}>
+              <Calendar size={18} color="#0d6efd" />
+              <span>Dni tygodnia: <strong>{formatDays(item.daysOfWeek)}</strong></span>
+            </div>
+
+            {isDriver && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#212529' }}>
+                <Users size={18} color="#198754" />
+                <span>Miejsca w aucie: <strong>{item.seats} wolnych</strong></span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '14px', color: '#212529', marginTop: '4px' }}>
+              <MapPin size={18} color="#dc3545" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <div style={{ fontSize: '12px', color: '#6c757d' }}>Start &rarr; Cel</div>
+                <strong>{startAddress}</strong> &rarr; <strong>{endAddress}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer buttons */}
+        <div style={{ padding: '16px 20px', borderTop: '1px solid #e9ecef', display: 'flex', gap: '10px', backgroundColor: '#fafafa', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px' }}>
+          <button 
+            onClick={onEdit} 
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #dee2e6', backgroundColor: 'white', color: '#212529', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <Edit2 size={16} /> Edytuj przejazd
+          </button>
+          <button 
+            onClick={onDelete} 
+            style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <Trash2 size={16} /> Usuń
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditRideModal({
+  item,
+  isDriver,
+  onClose,
+  onSave
+}: {
+  item: any;
+  isDriver: boolean;
+  onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+}) {
+  const initialDeparture = typeof item.departureTime === 'string' ? item.departureTime.substring(0, 5) : '07:00';
+  
+  const mapEnumToDays = (days: any[]) => {
+    if (!days || !Array.isArray(days)) return [];
+    const map: Record<string | number, string> = {
+      0: 'Pn', 1: 'Wt', 2: 'Śr', 3: 'Cz', 4: 'Pt', 5: 'Sb', 6: 'Nd',
+      'Mon': 'Pn', 'Tue': 'Wt', 'Wed': 'Śr', 'Thu': 'Cz', 'Fri': 'Pt', 'Sat': 'Sb', 'Sun': 'Nd'
+    };
+    return days.map(d => map[d] ?? d);
+  };
+
+  const [departureTime, setDepartureTime] = useState(initialDeparture);
+  const [selectedDays, setSelectedDays] = useState<string[]>(mapEnumToDays(item.daysOfWeek));
+  const [seats, setSeats] = useState<number>(item.seats || 3);
+  const [loading, setLoading] = useState(false);
+
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const mapDaysToEnum = (days: string[]) => {
+    const map: Record<string, number> = { 'Pn': 0, 'Wt': 1, 'Śr': 2, 'Cz': 3, 'Pt': 4, 'Sb': 5, 'Nd': 6 };
+    return days.map(d => map[d]).filter(v => v !== undefined);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedDays.length === 0) {
+      alert('Wybierz przynajmniej jeden dzień tygodnia.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload: any = {
+        departureTime: departureTime.length === 5 ? `${departureTime}:00` : departureTime,
+        daysOfWeek: mapDaysToEnum(selectedDays)
+      };
+      if (isDriver) {
+        payload.seats = Number(seats);
+      }
+      await onSave(payload);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      zIndex: 9999,
+      animation: 'fadeIn 0.2s ease-out'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '24px',
+        width: '100%',
+        maxWidth: '440px',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#212529' }}>
+            Edytuj przejazd
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#6c757d' }}>
+            <X size={22} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#212529' }}>
+              Godzina odjazdu
+            </label>
+            <input 
+              type="time" 
+              value={departureTime} 
+              onChange={e => setDepartureTime(e.target.value)} 
+              required
+              style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', fontSize: '16px', outline: 'none' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#212529' }}>
+              Dni tygodnia
+            </label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map(day => {
+                const isSelected = selectedDays.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDay(day)}
+                    style={{
+                      flex: 1,
+                      minWidth: '40px',
+                      padding: '10px 0',
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: isSelected ? '#0d6efd' : '#dee2e6',
+                      backgroundColor: isSelected ? '#e7f1ff' : 'white',
+                      color: isSelected ? '#0d6efd' : '#212529',
+                      fontWeight: isSelected ? 'bold' : 'normal',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {isDriver && (
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#212529' }}>
+                Liczba wolnych miejsc dla pasażerów
+              </label>
+              <input 
+                type="number" 
+                min="1" 
+                max="8" 
+                value={seats} 
+                onChange={e => setSeats(Number(e.target.value))} 
+                required
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', fontSize: '16px', outline: 'none' }}
+              />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #dee2e6', backgroundColor: '#f8f9fa', color: '#495057', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Anuluj
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', backgroundColor: '#0d6efd', color: 'white', fontWeight: 600, cursor: loading ? 'wait' : 'pointer' }}
+            >
+              {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmModal({
+  title,
+  message,
+  onClose,
+  onConfirm
+}: {
+  title: string;
+  message: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      zIndex: 9999,
+      animation: 'fadeIn 0.2s ease-out'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '24px',
+        padding: '28px 24px',
+        maxWidth: '380px',
+        width: '100%',
+        textAlign: 'center',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px'
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          backgroundColor: '#fff5f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#dc3545'
+        }}>
+          <AlertTriangle size={32} />
+        </div>
+
+        <div>
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: '#212529' }}>{title}</h3>
+          <p style={{ margin: 0, fontSize: '14px', color: '#6c757d', lineHeight: '1.4' }}>{message}</p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '6px' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #dee2e6', backgroundColor: '#f8f9fa', color: '#495057', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Anuluj
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', backgroundColor: '#dc3545', color: 'white', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Usuń
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

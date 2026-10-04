@@ -71,6 +71,20 @@ public class RideRequestService : IRideRequestService
         return true;
     }
 
+    public async Task<RideRequestDto?> UpdateRideRequestAsync(long id, long userId, UpdateRideRequestDto updateDto)
+    {
+        var request = await _context.RideRequests
+            .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
+
+        if (request == null) return null;
+
+        request.DepartureTime = updateDto.DepartureTime;
+        request.DaysOfWeek = updateDto.DaysOfWeek;
+
+        await _context.SaveChangesAsync();
+        return MapToDto(request);
+    }
+
     private static RideRequestDto MapToDto(RideRequest request)
     {
         return new RideRequestDto

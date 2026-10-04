@@ -23,3 +23,12 @@ public class CreateAdvertisementDto
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
     public string? Description { get; set; }
 }
+
+public class UpdateAdvertisementDto
+{
+    public short Seats { get; set; }
+    public TimeOnly DepartureTime { get; set; }
+    public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
+    public string? Description { get; set; }
+}
+

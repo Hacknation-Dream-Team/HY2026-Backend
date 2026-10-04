@@ -111,6 +111,31 @@ public class AdvertisementService : IAdvertisementService
         return true;
     }
 
+    public async Task<AdvertisementDto?> UpdateAdvertisementAsync(long id, long userId, UpdateAdvertisementDto updateDto)
+    {
+        var advertisement = await _context.Advertisements
+            .Include(a => a.Route)
+            .FirstOrDefaultAsync(a => a.Id == id && a.Route!.UserId == userId);
+
+        if (advertisement == null) return null;
+
+        if (updateDto.Seats <= 0)
+        {
+            throw new InvalidOperationException("Seats must be greater than 0.");
+        }
+
+        advertisement.Seats = updateDto.Seats;
+        advertisement.DepartureTime = updateDto.DepartureTime;
+        advertisement.DaysOfWeek = updateDto.DaysOfWeek;
+        if (updateDto.Description != null)
+        {
+            advertisement.Description = updateDto.Description;
+        }
+
+        await _context.SaveChangesAsync();
+        return MapToDto(advertisement);
+    }
+
     public static bool DoDaysOverlap(Weekday[]? days1, Weekday[]? days2)
     {
         if (days1 == null || days1.Length == 0 || days2 == null || days2.Length == 0)

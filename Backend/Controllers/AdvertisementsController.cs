@@ -64,4 +64,21 @@ public class AdvertisementsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<AdvertisementDto>> UpdateAdvertisement(long id, UpdateAdvertisementDto updateDto)
+    {
+        var userId = long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            var ad = await _advertisementService.UpdateAdvertisementAsync(id, userId, updateDto);
+            if (ad == null)
+                return NotFound();
+            return Ok(ad);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

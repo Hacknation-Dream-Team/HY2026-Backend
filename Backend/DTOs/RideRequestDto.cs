@@ -18,3 +18,10 @@ public class CreateRideRequestDto
     public TimeOnly DepartureTime { get; set; }
     public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
 }
+
+public class UpdateRideRequestDto
+{
+    public TimeOnly DepartureTime { get; set; }
+    public Weekday[] DaysOfWeek { get; set; } = Array.Empty<Weekday>();
+}
+
