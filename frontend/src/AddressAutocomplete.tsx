@@ -25,17 +25,14 @@ export function AddressAutocomplete({
     
     timeoutRef.current = setTimeout(async () => {
       try {
-        let q = value;
-        if (!q.toLowerCase().includes('krak')) {
-          q += ', Kraków';
-        }
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&viewbox=19.78,50.12,20.08,49.98&bounded=1`);
+        let q = value.trim();
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&countrycodes=pl`);
         const data = await res.json();
         setSuggestions(data || []);
       } catch (e) {
         console.error(e);
       }
-    }, 500);
+    }, 400);
 
     return () => clearTimeout(timeoutRef.current);
   }, [value, showDropdown]);

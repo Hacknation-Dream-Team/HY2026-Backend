@@ -53,7 +53,7 @@ export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => v
           </h2>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Miejsce zamieszkania</label>
-            <input type="text" defaultValue={user?.homeAddressText || 'Kraków, ul. Długa 1'} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
+            <input type="text" defaultValue={user?.homeAddressText || user?.homeAddress || ''} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }} />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Organizacja (Praca)</label>

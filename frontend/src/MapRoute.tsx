@@ -31,11 +31,8 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<string> 
 export const geocode = async (query: string): Promise<L.LatLng | null> => {
   if (!query || query.trim().length === 0) return null;
   try {
-    let q = query;
-    if (!q.toLowerCase().includes('krak') && !q.toLowerCase().includes('polska') && !q.toLowerCase().includes('poland')) {
-      q += ', Kraków';
-    }
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&viewbox=19.78,50.15,20.15,49.95`);
+    let q = query.trim();
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=pl`);
     const data = await res.json();
     if (data && data.length > 0) {
       return L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
@@ -67,7 +64,6 @@ export function MapRoute({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const routingControlRef = useRef<L.Routing.Control | null>(null);
   const debounceTimerRef = useRef<any>(null);
-  const lastCalculatedKeyRef = useRef<string>('');
 
   const [routeFound, setRouteFound] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,65 +78,19 @@ export function MapRoute({
   const midMarkerRef = useRef<L.Marker | null>(null);
   const endMarkerRef = useRef<L.Marker | null>(null);
 
-  // Initialize Map Once
+  const onRouteCalculatedRef = useRef(onRouteCalculated);
+  const readOnlyStartEndRef = useRef(readOnlyStartEnd);
+  const setStartAddressRef = useRef(setStartAddress);
+  const setMidAddressRef = useRef(setMidAddress);
+  const setEndAddressRef = useRef(setEndAddress);
+
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-    
-    const map = L.map(mapRef.current, { zoomControl: false }).setView([50.0614, 19.9365], 12);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    mapInstanceRef.current = map;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(map);
-
-    map.on('click', async (e: L.LeafletMouseEvent) => {
-      const latlng = e.latlng;
-
-      if (readOnlyStartEnd) {
-        setShowMidPoint(true);
-        updateMidPoint(latlng);
-        setIsLoading(true);
-        const addr = await reverseGeocode(latlng.lat, latlng.lng);
-        setMidAddress(addr);
-        setIsLoading(false);
-        scheduleRouteCalculation();
-        return;
-      }
-
-      if (!startPointRef.current) {
-        updateStartPoint(latlng);
-        setIsLoading(true);
-        const addr = await reverseGeocode(latlng.lat, latlng.lng);
-        setStartAddress(addr);
-        setIsLoading(false);
-        scheduleRouteCalculation();
-      } else if (showMidPoint && !midPointRef.current) {
-        updateMidPoint(latlng);
-        setIsLoading(true);
-        const addr = await reverseGeocode(latlng.lat, latlng.lng);
-        setMidAddress(addr);
-        setIsLoading(false);
-        scheduleRouteCalculation();
-      } else {
-        updateEndPoint(latlng);
-        setIsLoading(true);
-        const addr = await reverseGeocode(latlng.lat, latlng.lng);
-        setEndAddress(addr);
-        setIsLoading(false);
-        scheduleRouteCalculation();
-      }
-    });
-
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 300);
-
-    return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, []);
+    onRouteCalculatedRef.current = onRouteCalculated;
+    readOnlyStartEndRef.current = readOnlyStartEnd;
+    setStartAddressRef.current = setStartAddress;
+    setMidAddressRef.current = setMidAddress;
+    setEndAddressRef.current = setEndAddress;
+  });
 
   const updateStartPoint = useCallback((latlng: L.LatLng) => {
     const map = mapInstanceRef.current;
@@ -166,40 +116,48 @@ export function MapRoute({
     endMarkerRef.current = L.marker(latlng).addTo(map).bindPopup('Koniec');
   }, []);
 
-  const performRouting = () => {
-    const startPoint = startPointRef.current;
-    const midPoint = midPointRef.current;
-    const endPoint = endPointRef.current;
-    const map = mapInstanceRef.current;
+  const setWaypointsOnRoutingControl = useCallback(() => {
+    const control = routingControlRef.current;
+    if (!control) return;
 
-    if (!startPoint || !endPoint || !map) return;
+    const start = startPointRef.current;
+    const mid = midPointRef.current;
+    const end = endPointRef.current;
 
-    // Build unique cache key to prevent redundant duplicate requests
-    const currentKey = `${startPoint.lat.toFixed(5)},${startPoint.lng.toFixed(5)}|${(showMidPoint && midPoint) ? `${midPoint.lat.toFixed(5)},${midPoint.lng.toFixed(5)}` : 'none'}|${endPoint.lat.toFixed(5)},${endPoint.lng.toFixed(5)}`;
-    if (currentKey === lastCalculatedKeyRef.current) {
-      return; // Already calculated this exact route
-    }
-    lastCalculatedKeyRef.current = currentKey;
+    if (!start || !end) return;
 
     setIsLoading(true);
 
-    if (routingControlRef.current) {
-      try {
-        routingControlRef.current.getPlan().setWaypoints([]);
-        map.removeControl(routingControlRef.current);
-      } catch (e) {
-        console.warn('Leaflet routing cleanup error', e);
-      }
+    const waypoints: L.LatLng[] = [start];
+    if (mid) {
+      waypoints.push(mid);
     }
+    waypoints.push(end);
 
-    const waypoints = [startPoint];
-    if (showMidPoint && midPoint) {
-      waypoints.push(midPoint);
+    control.setWaypoints(waypoints);
+  }, []);
+
+  const scheduleRouteCalculation = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
-    waypoints.push(endPoint);
+    debounceTimerRef.current = setTimeout(() => {
+      setWaypointsOnRoutingControl();
+    }, 200);
+  }, [setWaypointsOnRoutingControl]);
 
+  // Initialize Map and Routing Control ONLY ONCE on Mount
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    
+    const map = L.map(mapRef.current, { zoomControl: false }).setView([52.0, 19.5], 6);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    mapInstanceRef.current = map;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+
+    // Create Leaflet Routing Machine control
     const control = L.Routing.control({
-      waypoints: waypoints,
+      waypoints: [],
       router: L.Routing.osrmv1({
         serviceUrl: '/osrm/route/v1',
         profile: 'driving'
@@ -229,11 +187,12 @@ export function MapRoute({
         setRouteFound(true);
         setIsLoading(false);
 
-        if (onRouteCalculated) {
-          const pointsList = [startPoint];
-          if (showMidPoint && midPoint) pointsList.push(midPoint);
-          pointsList.push(endPoint);
-          onRouteCalculated({
+        if (onRouteCalculatedRef.current && startPointRef.current && endPointRef.current) {
+          const pointsList = [startPointRef.current];
+          if (midPointRef.current) pointsList.push(midPointRef.current);
+          pointsList.push(endPointRef.current);
+
+          onRouteCalculatedRef.current({
             dist,
             timeStr,
             time,
@@ -244,32 +203,75 @@ export function MapRoute({
     });
 
     control.on('routingerror', (err: any) => {
-      console.warn('OSRM error, falling back to straight points calculation', err);
+      console.warn('OSRM routing fallback', err);
       setRouteFound(false);
       setIsLoading(false);
 
-      if (onRouteCalculated) {
-        const pointsList = [startPoint];
-        if (showMidPoint && midPoint) pointsList.push(midPoint);
-        pointsList.push(endPoint);
-        onRouteCalculated({
-          dist: '8.5',
+      if (onRouteCalculatedRef.current && startPointRef.current && endPointRef.current) {
+        const pointsList = [startPointRef.current];
+        if (midPointRef.current) pointsList.push(midPointRef.current);
+        pointsList.push(endPointRef.current);
+
+        onRouteCalculatedRef.current({
+          dist: '8.0',
           timeStr: '20 min',
           time: 20,
           points: pointsList.map(p => ({ latitude: p.lat, longitude: p.lng }))
         });
       }
     });
-  };
 
-  const scheduleRouteCalculation = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      performRouting();
-    }, 400);
-  };
+    map.on('click', async (e: L.LeafletMouseEvent) => {
+      const latlng = e.latlng;
+
+      if (readOnlyStartEndRef.current) {
+        setShowMidPoint(true);
+        updateMidPoint(latlng);
+        setWaypointsOnRoutingControl();
+        setIsLoading(true);
+        const addr = await reverseGeocode(latlng.lat, latlng.lng);
+        setMidAddressRef.current(addr);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!startPointRef.current) {
+        updateStartPoint(latlng);
+        setWaypointsOnRoutingControl();
+        setIsLoading(true);
+        const addr = await reverseGeocode(latlng.lat, latlng.lng);
+        setStartAddressRef.current(addr);
+        setIsLoading(false);
+      } else if (!midPointRef.current) {
+        setShowMidPoint(true);
+        updateMidPoint(latlng);
+        setWaypointsOnRoutingControl();
+        setIsLoading(true);
+        const addr = await reverseGeocode(latlng.lat, latlng.lng);
+        setMidAddressRef.current(addr);
+        setIsLoading(false);
+      } else {
+        updateEndPoint(latlng);
+        setWaypointsOnRoutingControl();
+        setIsLoading(true);
+        const addr = await reverseGeocode(latlng.lat, latlng.lng);
+        setEndAddressRef.current(addr);
+        setIsLoading(false);
+      }
+    });
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   // Sync Start & End Points when coordinates or addresses change
   const startLat = startCoords?.lat ?? startCoords?.latitude;
@@ -291,9 +293,6 @@ export function MapRoute({
       } else if (startAddress) {
         startLatLng = await geocode(startAddress);
       }
-      if (!startLatLng) {
-        startLatLng = L.latLng(50.0614, 19.9365);
-      }
 
       // Resolve End
       let endLatLng: L.LatLng | null = null;
@@ -302,15 +301,12 @@ export function MapRoute({
       } else if (endAddress) {
         endLatLng = await geocode(endAddress);
       }
-      if (!endLatLng) {
-        endLatLng = L.latLng(50.0750, 19.9850);
-      }
 
       // Resolve Mid (if any)
       let midLatLng: L.LatLng | null = null;
       if (midCoords?.lat && midCoords?.lng) {
         midLatLng = L.latLng(midCoords.lat, midCoords.lng);
-      } else if (midAddress) {
+      } else if (midAddress && !midPointRef.current) {
         midLatLng = await geocode(midAddress);
       }
 
@@ -325,9 +321,13 @@ export function MapRoute({
 
       if (startLatLng && endLatLng) {
         const bounds = L.latLngBounds([startLatLng, endLatLng]);
-        if (midLatLng) bounds.extend(midLatLng);
+        if (midPointRef.current) bounds.extend(midPointRef.current);
         map.fitBounds(bounds, { padding: [40, 40] });
         scheduleRouteCalculation();
+      } else if (startLatLng) {
+        map.setView(startLatLng, 13);
+      } else if (endLatLng) {
+        map.setView(endLatLng, 13);
       }
     };
 
@@ -336,7 +336,7 @@ export function MapRoute({
     return () => {
       isCancelled = true;
     };
-  }, [startAddress, endAddress, startLat, startLng, endLat, endLng]);
+  }, [startAddress, endAddress, startLat, startLng, endLat, endLng, scheduleRouteCalculation, updateEndPoint, updateMidPoint, updateStartPoint]);
 
   const handleClearMidPoint = () => {
     const map = mapInstanceRef.current;
@@ -346,9 +346,8 @@ export function MapRoute({
     }
     midPointRef.current = null;
     setShowMidPoint(false);
-    setMidAddress('');
-    lastCalculatedKeyRef.current = '';
-    scheduleRouteCalculation();
+    setMidAddressRef.current('');
+    setWaypointsOnRoutingControl();
   };
 
   const handleSearchStart = async () => {
@@ -358,7 +357,7 @@ export function MapRoute({
     if (latlng) {
       updateStartPoint(latlng);
       mapInstanceRef.current?.setView(latlng, 14);
-      scheduleRouteCalculation();
+      setWaypointsOnRoutingControl();
     }
     setIsLoading(false);
   };
@@ -368,9 +367,10 @@ export function MapRoute({
     setIsLoading(true);
     const latlng = await geocode(midAddress);
     if (latlng) {
+      setShowMidPoint(true);
       updateMidPoint(latlng);
       mapInstanceRef.current?.setView(latlng, 14);
-      scheduleRouteCalculation();
+      setWaypointsOnRoutingControl();
     }
     setIsLoading(false);
   };
@@ -382,7 +382,7 @@ export function MapRoute({
     if (latlng) {
       updateEndPoint(latlng);
       mapInstanceRef.current?.setView(latlng, 14);
-      scheduleRouteCalculation();
+      setWaypointsOnRoutingControl();
     }
     setIsLoading(false);
   };

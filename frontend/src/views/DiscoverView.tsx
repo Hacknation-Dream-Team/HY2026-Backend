@@ -185,8 +185,8 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
 
   const userOrg = organizations.find(o => o.id === user?.organizationId || o.name === user?.organizationName);
 
-  const home = user?.homeAddress || user?.homeAddressText || 'Kraków, Wawel';
-  const org = userOrg?.address || user?.organizationName || 'Kraków, Rynek Główny';
+  const home = user?.homeAddress || user?.homeAddressText || '';
+  const org = userOrg?.address || user?.organizationName || '';
 
   const homeCoords = useMemo(() => user?.homeLocation ? { lat: user.homeLocation.latitude, lng: user.homeLocation.longitude } : null, [user?.homeLocation?.latitude, user?.homeLocation?.longitude]);
   const orgCoords = useMemo(() => userOrg?.location ? { lat: userOrg.location.latitude, lng: userOrg.location.longitude } : null, [userOrg?.location?.latitude, userOrg?.location?.longitude]);
