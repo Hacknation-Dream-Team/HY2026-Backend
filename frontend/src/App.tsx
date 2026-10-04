@@ -31,7 +31,7 @@ export function App() {
   if (view === 'authChoice') {
     return (
       <div className="fade-in app-container" style={{ padding: '40px 20px', textAlign: 'center', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: '500px', margin: '0 auto' }}>
-        <h1 style={{ marginBottom: '10px', color: '#0d6efd', fontSize: '32px' }}>Commute Together</h1>
+        <h1 style={{ marginBottom: '10px', color: '#0d6efd', fontSize: '32px' }}>Commuter Share</h1>
         <p style={{ color: '#6c757d', marginBottom: '40px' }}>Wspólne dojazdy do pracy.</p>
         
         <button 

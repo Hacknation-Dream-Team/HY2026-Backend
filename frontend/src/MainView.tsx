@@ -14,7 +14,7 @@ export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void
       
       {/* Top Bar for Notifications */}
       <div style={{ padding: '16px 20px', backgroundColor: 'white', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#0d6efd' }}>Commute Together</div>
+        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#0d6efd' }}>Commuter Share</div>
         <button onClick={() => setShowNotifications(!showNotifications)} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
           <Bell size={24} color="#495057" />
           <div style={{ position: 'absolute', top: '-2px', right: '-2px', backgroundColor: '#dc3545', width: '10px', height: '10px', borderRadius: '50%', border: '2px solid white' }}></div>

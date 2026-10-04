@@ -33,8 +33,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Commute Together',
-        short_name: 'Commute',
+        name: 'Commuter Share',
+        short_name: 'Commuter Share',
         description: 'Mobilna aplikacja PWA do wytyczania tras i dojazdów',
         theme_color: '#3b82f6',
         background_color: '#f8fafc',
