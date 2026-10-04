@@ -106,12 +106,10 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.animate-pulse {
-  animation: pulseGlow 2s infinite ease-in-out;
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
+.animate-spin, .spin {
+  animation: spin 0.9s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* Leaflet Map Responsive Height */

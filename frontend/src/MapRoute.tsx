@@ -466,6 +466,14 @@ export function MapRoute({
       <div style={{ position: 'relative', width: '100%', height: '320px' }}>
         <div ref={mapRef} style={{ width: '100%', height: '100%', zIndex: 1 }}></div>
 
+        {/* Loading Overlay Spinner */}
+        {isLoading && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255, 255, 255, 0.65)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 400, gap: '8px' }}>
+            <Loader2 size={32} className="spin" color="#0d6efd" />
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#0d6efd' }}>Wyznaczanie trasy na mapie...</span>
+          </div>
+        )}
+
         {/* Distance & Time Overlay */}
         {routeFound && routeInfo && (
           <div className="fade-in" style={{ position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(255,255,255,0.95)', padding: '6px 16px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.15)', zIndex: 400, fontWeight: 'bold', fontSize: '13px', color: '#212529', display: 'flex', gap: '8px', whiteSpace: 'nowrap' }}>

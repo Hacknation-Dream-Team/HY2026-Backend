@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2, Eye, Edit2, Trash2, Calendar, Users, X, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2, Eye, Edit2, Trash2, Calendar, Users, X, AlertTriangle, MessageCircle, Loader2 } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
 import { api } from '../api';
@@ -763,6 +763,7 @@ function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => voi
   const [searchError, setSearchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [expandedMapId, setExpandedMapId] = useState<number | string | null>(null);
 
   useEffect(() => {
     api.getOrganizations().then(setOrganizations).catch(console.error);
@@ -964,11 +965,19 @@ function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => voi
             <span style={{ fontSize: '13px', color: '#0d6efd', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setHasSearched(false)}>Zmień filtry</span>
           </div>
           
-          {searchResults.length === 0 && (
+          {loading ? (
+            <div style={{ textAlign: 'center', color: '#0d6efd', padding: '50px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <Loader2 size={40} className="spin" color="#0d6efd" />
+              <div>
+                <strong style={{ fontSize: '16px', color: '#212529', display: 'block', marginBottom: '4px' }}>Szukanie dostępnych przejazdów...</strong>
+                <span style={{ fontSize: '13px', color: '#6c757d' }}>Sprawdzamy dopasowania tras i harmonogramy kierowców</span>
+              </div>
+            </div>
+          ) : searchResults.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e9ecef' }}>
               Brak dopasowanych przejazdów w wybranych godzinach.
             </div>
-          )}
+          ) : null}
 
           {searchResults.map(res => {
             const isJoined = joinedAdIds.includes(res.advertisementId);
@@ -1005,17 +1014,6 @@ function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => voi
                   </span>
                 </div>
 
-                {/* Map Preview */}
-                <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #dee2e6' }}>
-                  <MapRoute
-                    startAddress={startAddress}
-                    endAddress={endAddress}
-                    startCoords={startCoords}
-                    endCoords={endCoords}
-                    readOnlyStartEnd={true}
-                  />
-                </div>
-                
                 {/* Time & details info */}
                 <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '10px', border: '1px solid #e9ecef' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1030,6 +1028,41 @@ function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => voi
                     </div>
                   )}
                 </div>
+
+                {/* Optional Map Preview Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedMapId(prev => prev === res.advertisementId ? null : res.advertisementId)}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    backgroundColor: expandedMapId === res.advertisementId ? '#eff6ff' : '#f8fafc',
+                    color: '#0d6efd',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Eye size={15} /> {expandedMapId === res.advertisementId ? 'Ukryj mapę trasy' : 'Pokaż trasę na mapie'}
+                </button>
+
+                {/* Map Preview when expanded */}
+                {expandedMapId === res.advertisementId && (
+                  <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #dee2e6' }} className="fade-in">
+                    <MapRoute
+                      startAddress={startAddress}
+                      endAddress={endAddress}
+                      startCoords={startCoords}
+                      endCoords={endCoords}
+                      readOnlyStartEnd={true}
+                    />
+                  </div>
+                )}
                 
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: '10px' }}>
