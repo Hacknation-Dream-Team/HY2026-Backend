@@ -6,10 +6,8 @@ import { ProfileView } from './views/ProfileView';
 
 export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void }) {
   const [activeTab, setActiveTab] = useState<'discover' | 'chats' | 'profile'>('discover');
-  const [, setActiveChatId] = useState<string | null>(null);
+  const [activeChatUserId, setActiveChatUserId] = useState<number | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-
-
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f8f9fa', position: 'relative' }}>
@@ -40,21 +38,35 @@ export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void
       )}
 
       <div style={{ flex: 1, overflowY: 'auto' }} onClick={() => setShowNotifications(false)}>
-        {activeTab === 'discover' && <DiscoverView user={user} onNavigateToChats={() => setActiveTab('chats')} />}
-        {activeTab === 'chats' && <ChatsView />}
+        {activeTab === 'discover' && (
+          <DiscoverView 
+            user={user} 
+            onNavigateToChats={(targetUserId?: number) => {
+              setActiveTab('chats');
+              if (targetUserId) setActiveChatUserId(targetUserId);
+            }} 
+          />
+        )}
+        {activeTab === 'chats' && (
+          <ChatsView 
+            activeUserId={activeChatUserId}
+            onSelectUser={(id) => setActiveChatUserId(id)}
+            currentUser={user}
+          />
+        )}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
       </div>
 
       <div style={{ display: 'flex', borderTop: '1px solid #e9ecef', backgroundColor: 'white', padding: '10px 0', paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
         <button 
-          onClick={() => { setActiveTab('discover'); setActiveChatId(null); }}
+          onClick={() => { setActiveTab('discover'); setActiveChatUserId(null); }}
           style={navButtonStyle(activeTab === 'discover')}
         >
           <Compass size={24} />
           <span style={{ fontSize: '12px', marginTop: '4px' }}>Odkryj</span>
         </button>
         <button 
-          onClick={() => { setActiveTab('chats'); setActiveChatId(null); }}
+          onClick={() => { setActiveTab('chats'); setActiveChatUserId(null); }}
           style={navButtonStyle(activeTab === 'chats')}
         >
           <MessageCircle size={24} />

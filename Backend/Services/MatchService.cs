@@ -189,8 +189,10 @@ public class MatchService : IMatchService
         var matches = await _context.Matches
             .AsNoTracking()
             .Include(m => m.Request)
+                .ThenInclude(r => r!.User)
             .Include(m => m.Advertisement)
-            .ThenInclude(a => a!.Route)
+                .ThenInclude(a => a!.Route)
+                    .ThenInclude(r => r!.User)
             .Where(m => m.Request!.UserId == currentUserId || m.Advertisement!.Route!.UserId == currentUserId)
             .ToListAsync();
 
@@ -201,8 +203,10 @@ public class MatchService : IMatchService
     {
         var match = await _context.Matches
             .Include(m => m.Request)
+                .ThenInclude(r => r!.User)
             .Include(m => m.Advertisement)
-            .ThenInclude(a => a!.Route)
+                .ThenInclude(a => a!.Route)
+                    .ThenInclude(r => r!.User)
             .FirstOrDefaultAsync(m => m.Id == matchId);
 
         if (match == null)
@@ -228,6 +232,11 @@ public class MatchService : IMatchService
             throw new InvalidOperationException("A cancelled match can no longer be changed.");
         }
 
+        if (match.Status == MatchStatus.Rejected)
+        {
+            throw new InvalidOperationException("A rejected match can no longer be changed.");
+        }
+
         if (!isDriver && status != MatchStatus.Cancelled)
         {
             throw new UnauthorizedAccessException("Only the driver can accept or reject a match; a passenger can only cancel it.");
@@ -251,13 +260,26 @@ public class MatchService : IMatchService
         return MapToDto(match);
     }
 
-    private static MatchDto MapToDto(Match match) => new()
+    private static MatchDto MapToDto(Match match)
     {
-        Id = match.Id,
-        AdvertisementId = match.AdvertisementId,
-        RequestId = match.RequestId,
-        PickupSeq = match.PickupSeq,
-        DropoffSeq = match.DropoffSeq,
-        Status = match.Status
-    };
+        var driverUser = match.Advertisement?.Route?.User;
+        var passengerUser = match.Request?.User;
+        var route = match.Advertisement?.Route;
+
+        return new MatchDto
+        {
+            Id = match.Id,
+            AdvertisementId = match.AdvertisementId,
+            RequestId = match.RequestId,
+            PickupSeq = match.PickupSeq,
+            DropoffSeq = match.DropoffSeq,
+            Status = match.Status,
+            DriverUserId = driverUser?.Id ?? match.Advertisement?.Route?.UserId ?? 0,
+            PassengerUserId = passengerUser?.Id ?? match.Request?.UserId ?? 0,
+            DriverName = driverUser != null ? $"{driverUser.Name} {driverUser.Surname}".Trim() : null,
+            PassengerName = passengerUser != null ? $"{passengerUser.Name} {passengerUser.Surname}".Trim() : null,
+            Direction = route != null ? route.Direction.ToString() : null,
+            DepartureTime = match.Advertisement?.DepartureTime.ToString() ?? match.Request?.DepartureTime.ToString()
+        };
+    }
 }

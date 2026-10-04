@@ -117,7 +117,7 @@ public class MatchesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<MatchDto>> UpdateStatus(long id, [FromBody] MatchStatus status)
+    public async Task<ActionResult<MatchDto>> UpdateStatus(long id, [FromBody] System.Text.Json.JsonElement body)
     {
         var currentUserId = GetCurrentUserId();
         if (currentUserId == null)
@@ -127,6 +127,16 @@ public class MatchesController : ControllerBase
 
         try
         {
+            MatchStatus status;
+            if (body.ValueKind == System.Text.Json.JsonValueKind.Object && body.TryGetProperty("status", out var statusProp))
+            {
+                status = ParseMatchStatus(statusProp);
+            }
+            else
+            {
+                status = ParseMatchStatus(body);
+            }
+
             var updated = await _matchService.UpdateMatchStatusAsync(id, currentUserId.Value, status);
             if (updated == null)
             {
@@ -143,6 +153,19 @@ public class MatchesController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    private static MatchStatus ParseMatchStatus(System.Text.Json.JsonElement element)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt32(out var val))
+        {
+            return (MatchStatus)val;
+        }
+        if (element.ValueKind == System.Text.Json.JsonValueKind.String && Enum.TryParse<MatchStatus>(element.GetString(), true, out var parsed))
+        {
+            return parsed;
+        }
+        throw new InvalidOperationException("Invalid status format.");
     }
 
     private long? GetCurrentUserId()

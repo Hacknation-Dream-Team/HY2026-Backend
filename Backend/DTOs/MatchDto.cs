@@ -10,4 +10,10 @@ public class MatchDto
     public short PickupSeq { get; set; }
     public short DropoffSeq { get; set; }
     public MatchStatus Status { get; set; }
+    public long DriverUserId { get; set; }
+    public long PassengerUserId { get; set; }
+    public string? DriverName { get; set; }
+    public string? PassengerName { get; set; }
+    public string? Direction { get; set; }
+    public string? DepartureTime { get; set; }
 }

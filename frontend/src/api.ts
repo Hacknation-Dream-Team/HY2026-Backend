@@ -246,5 +246,51 @@ export const api = {
       body: JSON.stringify(data)
     });
     return handleResponse(res, 'Adding car failed');
+  },
+
+  async getConversations() {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/chat/conversations`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res, 'Fetching conversations failed');
+  },
+
+  async getChatMessages(otherUserId: number | string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/chat/messages/${otherUserId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res, 'Fetching chat messages failed');
+  },
+
+  async sendChatMessage(recipientId: number | string, content: string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/chat/messages`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ recipientId: Number(recipientId), content })
+    });
+    return handleResponse(res, 'Sending message failed');
+  },
+
+  async markChatAsRead(otherUserId: number | string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/chat/read/${otherUserId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res, 'Marking messages as read failed');
+  },
+
+  async getUnreadChatCount() {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/chat/unread-count`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res, 'Fetching unread count failed');
   }
 };

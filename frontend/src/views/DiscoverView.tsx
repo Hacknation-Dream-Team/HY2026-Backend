@@ -4,7 +4,7 @@ import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
 import { api } from '../api';
 
-export function DiscoverView({ user, onNavigateToChats }: { user?: any, onNavigateToChats?: () => void }) {
+export function DiscoverView({ user, onNavigateToChats }: { user?: any, onNavigateToChats?: (userId?: number) => void }) {
   const [roleTab, setRoleTab] = useState<'driver' | 'passenger'>('driver');
   const [action, setAction] = useState<'none' | 'offer' | 'search' | 'addCar'>('none');
   const [tempHasCar, setTempHasCar] = useState(false); // local mock state for when user adds car in this session
@@ -748,7 +748,7 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
 }
 
 
-function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => void, user?: any, onNavigateToChats?: () => void }) {
+function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => void, user?: any, onNavigateToChats?: (userId?: number) => void }) {
   const [hasSearched, setHasSearched] = useState(false);
   const [direction, setDirection] = useState<'home-to-work' | 'work-to-home'>('home-to-work');
   const [selectedDays, setSelectedDays] = useState<string[]>(['Pn', 'Wt', 'Śr', 'Cz', 'Pt']);
@@ -1100,7 +1100,7 @@ function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => voi
 
                   <button
                     type="button"
-                    onClick={() => { if (onNavigateToChats) onNavigateToChats(); }}
+                    onClick={() => { if (onNavigateToChats) onNavigateToChats(res.userId || res.driverId || res.advertisementId); }}
                     style={{
                       flex: 1,
                       padding: '12px',
