@@ -1,0 +1,20 @@
+# sekrety (connection string do Neona)
+.env
+
+# środowisko Pythona
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# surowe dane do pobrania na nowo
+# EEA: python scripts/load_eea_raw.py / scripts/fetch_car_models.py
+data/eea_cache/
+data/eea_raw.csv
+# CEPiK: instrukcja w docs/memo-analityka.md, sekcja "Odtworzenie"; zostaje tylko to, czego używa symulacja
+data/cepik/*
+!data/cepik/rozklad_aut_warszawa_2010plus.csv
+!data/cepik/extract_stats.json

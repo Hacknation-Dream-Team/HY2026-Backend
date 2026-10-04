@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wspólne dojazdy do pracy</title>
+<style>
+  :root {
+    --navy: #12233A;
+    --cream: #F4F1EA;
+    --orange: #E8833A;
+    --green: #2F9E6E;
+    --muted: #5B6B7F;
+    --muted-dark: #A9B6C6;
+    --line: #DAD3C5;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #0B1624; overflow: hidden; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .frame { position: relative; width: 1920px; height: 1080px; flex: none; transform-origin: center center; }
+  .slide {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    padding: 120px 140px; background: var(--cream); color: var(--navy); overflow: hidden;
+  }
+  .slide.active { display: flex; }
+  .dark { background: var(--navy); color: var(--cream); }
+
+  .kicker { font-size: 26px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: var(--orange); margin-bottom: 28px; }
+  h1 { font-size: 128px; line-height: 1.02; font-weight: 800; letter-spacing: -2px; }
+  h2 { font-size: 72px; line-height: 1.08; font-weight: 800; letter-spacing: -1px; max-width: 1560px; }
+  .lead { font-size: 44px; line-height: 1.3; }
+  p, li { font-size: 34px; line-height: 1.4; }
+  .small { font-size: 26px; line-height: 1.4; color: var(--muted); }
+  .dark .small { color: var(--muted-dark); }
+  .grow { flex: 1; }
+  .ph { color: var(--orange); }
+
+  .grid { display: grid; gap: 40px; }
+  .card { background: var(--card); border-radius: 20px; padding: 44px; }
+  .dark .card { background: rgba(255,255,255,0.06); }
+  .big { font-size: 96px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+  .big.green { color: var(--green); }
+  .big.orange { color: var(--orange); }
+  .card .lbl { font-size: 30px; line-height: 1.35; margin-top: 20px; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 72px; }
+  .step { border-top: 8px solid var(--orange); padding-top: 32px; }
+  .step .n { font-size: 30px; font-weight: 800; color: var(--orange); }
+  .step h3 { font-size: 44px; font-weight: 800; margin: 12px 0 20px; }
+  .step p { font-size: 30px; }
+
+  .bars { display: flex; flex-direction: column; gap: 36px; margin-top: 64px; }
+  .bar-row { display: grid; grid-template-columns: 520px 1fr 220px; align-items: center; gap: 36px; }
+  .bar-row .name { font-size: 30px; line-height: 1.3; }
+  .bar-row .name b { display: block; font-size: 34px; }
+  .track { height: 72px; background: #E6E0D4; border-radius: 12px; position: relative; }
+  .fill { height: 100%; border-radius: 12px; background: var(--navy); display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; color: var(--cream); font-size: 32px; font-weight: 800; min-width: 110px; }
+  .fill.hi { background: var(--green); }
+  .bar-row .side { font-size: 34px; font-weight: 800; text-align: right; }
+  .bar-row .side span { display: block; font-size: 24px; font-weight: 400; color: var(--muted); }
+
+  ul.plain { list-style: none; }
+  ul.plain li { padding-left: 48px; position: relative; margin-bottom: 26px; }
+  ul.plain li::before { content: ""; position: absolute; left: 0; top: 18px; width: 22px; height: 8px; background: var(--orange); border-radius: 4px; }
+
+  .hud { position: fixed; right: 20px; bottom: 14px; font-size: 14px; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; user-select: none; }
+
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body { overflow: visible; background: none; height: auto; }
+    .stage { position: static; display: block; }
+    .frame { transform: none !important; width: auto; height: auto; }
+    .slide { display: flex !important; position: relative; width: 1920px; height: 1080px; break-after: page; }
+    .hud { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage"><div class="frame" id="frame">
+
+<!-- 1. Okładka -->
+<section class="slide dark">
+  <div class="kicker ph">[Nazwa aplikacji]</div>
+  <div class="grow" style="display:flex;flex-direction:column;justify-content:center;gap:48px">
+    <h1>Wspólne dojazdy<br>do pracy</h1>
+    <p class="lead" style="color:var(--muted-dark);max-width:1400px">Ludzie z tej samej firmy jadą jednym autem, dopasowani po trasie i godzinie.</p>
+  </div>
+  <p class="small ph">[Nazwa zespołu] · [imiona i nazwiska]</p>
+</section>
+
+<!-- 2. Problem -->
+<section class="slide">
+  <div class="kicker">Problem</div>
+  <h2>Do biura jeździmy sami, tą samą trasą, o tej samej porze</h2>
+  <div class="grid grow" style="grid-template-columns:repeat(4,1fr);align-content:center">
+    <div class="card"><div class="big">904 tys.</div><div class="lbl">aut osobowych zarejestrowanych w Warszawie</div></div>
+    <div class="card"><div class="big">~11 km</div><div class="lbl">typowy dojazd do biura w jedną stronę</div></div>
+    <div class="card"><div class="big orange">8,19 zł</div><div class="lbl">litr Pb95 (olej napędowy 9,14 zł)</div></div>
+    <div class="card"><div class="big">131 g</div><div class="lbl">CO₂ na kilometr ze średniego auta w Warszawie</div></div>
+  </div>
+  <p class="small">Źródła: CEPiK (2022), EEA, e-petrol (30.09.2026), symulacja dojazdów.</p>
+</section>
+
+<!-- 3. Rozwiązanie -->
+<section class="slide">
+  <div class="kicker">Rozwiązanie</div>
+  <h2>Jedziesz i tak. Zabierz kogoś z pracy.</h2>
+  <div class="grid grow" style="grid-template-columns:1fr 1fr;align-content:center">
+    <div class="card">
+      <p style="font-size:44px;font-weight:800;margin-bottom:24px">Kierowca</p>
+      <ul class="plain">
+        <li>zapisuje trasę dom → biuro z przystankami po drodze</li>
+        <li>podaje godzinę, dni tygodnia i liczbę wolnych miejsc</li>
+        <li>akceptuje pasażerów</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p style="font-size:44px;font-weight:800;margin-bottom:24px">Pasażer</p>
+      <ul class="plain">
+        <li>zgłasza, kiedy jedzie do pracy i z powrotem</li>
+        <li>dostaje kierowców z przystankiem blisko domu</li>
+        <li>wsiada i wysiada na przystankach z trasy</li>
+      </ul>
+    </div>
+  </div>
+  <p class="lead">Dopasowanie jest automatyczne i w obrębie firmy: jedziesz z ludźmi z biura.</p>
+</section>
+
+<!-- 4. Jak to działa -->
+<section class="slide">
+  <div class="kicker">Jak to działa</div>
+  <h2>Od trasy do wspólnego przejazdu w czterech krokach</h2>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><h3>Trasa</h3><p>Kierowca zapisuje trasę: dom → przystanki → biuro. Powrót to osobna trasa.</p></div>
+    <div class="step"><div class="n">02</div><h3>Zapytanie</h3><p>Pasażer podaje kierunek, godzinę i dni tygodnia. Adres domu jest w profilu.</p></div>
+    <div class="step"><div class="n">03</div><h3>Dopasowanie</h3><p>Przystanek do 500 m od domu, wyjazd ±15 min, ta sama firma. Liczy baza (PostGIS).</p></div>
+    <div class="step"><div class="n">04</div><h3>Jazda</h3><p>Kierowca akceptuje. Pojedynczy dzień można odwołać, reszta tygodnia zostaje.</p></div>
+  </div>
+  <div class="grow"></div>
+  <p class="small">Dojazdy cykliczne: jedno ogłoszenie obsługuje cały tydzień, każdy pasażer ma własny punkt wsiadania i wysiadania.</p>
+</section>
+
+<!-- 5. Pokaz na żywo -->
+<section class="slide dark" style="justify-content:center">
+  <div class="kicker">Pokaz na żywo</div>
+  <h1>Zobaczmy to<br>w aplikacji</h1>
+  <p class="lead ph" style="margin-top:48px">[co pokazujemy: trasa kierowcy → zapytanie pasażera → dopasowanie → akceptacja]</p>
+</section>
+
+<!-- 6. Efekt na jedno auto -->
+<section class="slide">
+  <div class="kicker">Efekt</div>
+  <h2>Każde wspólne auto to mniej więcej połowa CO₂ na osobę</h2>
+  <div class="bars">
+    <div class="bar-row"><div class="name"><b>1 osoba w aucie</b>dziś</div><div class="track"><div class="fill" style="width:100%">100%</div></div><div class="side">—</div></div>
+    <div class="bar-row"><div class="name"><b>2 osoby</b>kierowca + pasażer</div><div class="track"><div class="fill hi" style="width:50%">50%</div></div><div class="side" style="color:var(--green)">−50%</div></div>
+    <div class="bar-row"><div class="name"><b>3 osoby</b>kierowca + 2 pasażerów</div><div class="track"><div class="fill hi" style="width:33.3%">33%</div></div><div class="side" style="color:var(--green)">−67%</div></div>
+  </div>
+  <div class="grow"></div>
+  <p class="lead">W symulacji wspólnym autem jedzie średnio 2,1–2,9 osoby, czyli <b>−53…−65% CO₂</b> na osobę.</p>
+</section>
+
+<!-- 7. Skala -->
+<section class="slide">
+  <div class="kicker">Skala</div>
+  <h2>Liczy się gęstość: im więcej ludzi w puli, tym więcej dopasowań</h2>
+  <div class="bars" style="gap:28px;margin-top:56px">
+    <div class="bar-row"><div class="name"><b>Oddział, 500 osób</b>500 m, ±15 min</div><div class="track"><div class="fill" style="width:9%">9%</div></div><div class="side">~1 t<span>CO₂ rocznie</span></div></div>
+    <div class="bar-row"><div class="name"><b>Oddział, 500 osób</b>800 m, ±30 min</div><div class="track"><div class="fill" style="width:24%">24%</div></div><div class="side">~3 t<span>CO₂ rocznie</span></div></div>
+    <div class="bar-row"><div class="name"><b>Pula 2 000 osób</b>800 m, ±30 min</div><div class="track"><div class="fill" style="width:52%">52%</div></div><div class="side">~29 t<span>CO₂ rocznie</span></div></div>
+    <div class="bar-row"><div class="name"><b>Pula 10 000 osób</b>800 m, ±30 min</div><div class="track"><div class="fill hi" style="width:80%">80%</div></div><div class="side" style="color:var(--green)">~240 t<span>CO₂ rocznie</span></div></div>
+  </div>
+  <div class="grow"></div>
+  <p class="small">Słupek: odsetek szukających, którzy dostają przejazd. Symulacja, 500 przebiegów na scenariusz.</p>
+</section>
+
+<!-- 8. Dzielnica biurowa -->
+<section class="slide dark">
+  <div class="kicker">Dzielnica biurowa, 10 tys. pracowników</div>
+  <h2>Tu efekt jest naprawdę widoczny</h2>
+  <div class="grid grow" style="grid-template-columns:repeat(4,1fr);align-content:center">
+    <div class="card"><div class="big green">80%</div><div class="lbl">szukających dostaje przejazd</div></div>
+    <div class="card"><div class="big green">−43%</div><div class="lbl">CO₂ uczestników programu</div></div>
+    <div class="card"><div class="big green">~240 t</div><div class="lbl">CO₂ mniej rocznie</div></div>
+    <div class="card"><div class="big green">~390</div><div class="lbl">aut mniej pod biurami każdego dnia</div></div>
+  </div>
+  <p class="lead">Wniosek: dopasowywać ludzi z różnych firm w tej samej lokalizacji, nie tylko w jednym oddziale.</p>
+</section>
+
+<!-- 9. Dane i metoda -->
+<section class="slide">
+  <div class="kicker">Dane i metoda</div>
+  <h2>Prawdziwa flota i geografia, jawne założenia</h2>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:64px;gap:32px">
+    <div class="card"><p style="font-size:40px;font-weight:800">CEPiK</p><p style="font-size:28px;margin-top:16px">904 tys. aut z Warszawy, 326 tys. z roczników 2010+. <b>97,7%</b> dopasowanych do słownika modeli.</p></div>
+    <div class="card"><p style="font-size:40px;font-weight:800">EEA</p><p style="font-size:28px;margin-top:16px">Spalanie i CO₂ nowych aut w UE (WLTP). Średnio <b>131 g/km</b>, zgodność z CEPiK do <b>0,1%</b>.</p></div>
+    <div class="card"><p style="font-size:40px;font-weight:800">GUS + OSM</p><p style="font-size:28px;margin-top:16px">Ludność i granice dzielnic: gdzie mieszkają pracownicy biura.</p></div>
+    <div class="card"><p style="font-size:40px;font-weight:800">e-petrol</p><p style="font-size:28px;margin-top:16px">Ceny paliw z 30.09.2026.</p></div>
+  </div>
+  <div class="grow"></div>
+  <p style="font-size:30px"><b>Założenia:</b> 45% dojeżdża autem, 30% dołącza do programu, 40% z nich to kierowcy. Trasy w linii prostej ×1,3. CO₂ homologacyjne, w mieście realnie wyższe, więc wynik jest ostrożny.</p>
+  <p class="small" style="margin-top:16px">Symulacja metodą Monte Carlo, 500 przebiegów, widełki 5–95%. Kod i notatniki w repozytorium.</p>
+</section>
+
+<!-- 10. Co dalej -->
+<section class="slide dark">
+  <div class="kicker">Co dalej</div>
+  <h2>Następne kroki</h2>
+  <ul class="plain" style="margin-top:64px">
+    <li>Dopasowanie między firmami w tym samym biurowcu i dzielnicy</li>
+    <li>Szersze reguły domyślne: 800 m, ±30 min</li>
+    <li>Cena przejazdu z dystansu, spalania i ceny paliwa, dzielona na pasażerów</li>
+    <li>Płatności w aplikacji</li>
+    <li>Licznik CO₂ i oszczędności dla użytkownika i firmy</li>
+  </ul>
+  <div class="grow"></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end">
+    <p class="lead ph">[Nazwa zespołu] · [imiona i nazwiska]</p>
+    <p style="font-size:56px;font-weight:800">Dziękujemy</p>
+  </div>
+</section>
+
+</div></div>
+<div class="hud" id="hud"></div>
+
+<script>
+  const frame = document.getElementById('frame');
+  const slides = [...document.querySelectorAll('.slide')];
+  const hud = document.getElementById('hud');
+  let i = 0;
+
+  function fit() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    frame.style.transform = 'scale(' + s + ')';
+  }
+
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((el, k) => el.classList.toggle('active', k === i));
+    hud.textContent = (i + 1) + ' / ' + slides.length;
+    history.replaceState(null, '', '#' + (i + 1));
+  }
+
+  addEventListener('resize', fit);
+  addEventListener('keydown', e => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+  addEventListener('click', e => show(e.clientX > innerWidth / 2 ? i + 1 : i - 1));
+
+  fit();
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>
