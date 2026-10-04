@@ -465,6 +465,10 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
   const [timeValue, setTimeValue] = useState('07:00');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [lastRequestId, setLastRequestId] = useState<number | null>(null);
+  const [joiningId, setJoiningId] = useState<number | null>(null);
+  const [joinedAdIds, setJoinedAdIds] = useState<number[]>([]);
+  const [successModalData, setSuccessModalData] = useState<any | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const toggleDay = (day: string) => {
     setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
@@ -477,6 +481,7 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
 
   const handleSearch = async () => {
     setHasSearched(true);
+    setSearchError(null);
     try {
       const targetDirection = direction === 'home-to-work' ? 'ToWork' : 'ToHome';
 
@@ -504,19 +509,44 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
       const results = await api.searchMatches({ requestId: req.id });
       setSearchResults(results || []);
     } catch (e: any) {
-      alert('Błąd wyszukiwania: ' + e.message);
+      setSearchError(e.message || 'Błąd podczas wyszukiwania przejazdów');
       setHasSearched(false);
     }
   };
 
+  const handleJoinRide = async (res: any) => {
+    if (!lastRequestId) return;
+    setJoiningId(res.advertisementId);
+    try {
+      await api.createMatch({
+        advertisementId: res.advertisementId,
+        requestId: lastRequestId,
+        pickupSeq: res.pickupSeq,
+        dropoffSeq: res.dropoffSeq
+      });
+      setJoinedAdIds(prev => [...prev, res.advertisementId]);
+      setSuccessModalData(res);
+    } catch (e: any) {
+      alert('Nie udało się wysłać prośby: ' + (e.message || 'Błąd serwera'));
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
   return (
-    <div className="fade-in" style={{ padding: '20px' }}>
+    <div className="fade-in" style={{ padding: '20px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
           <ArrowLeft size={24} />
         </button>
         <h1 style={{ fontSize: '20px', margin: 0 }}>Szukaj przejazdu</h1>
       </div>
+
+      {searchError && (
+        <div style={{ padding: '12px 16px', borderRadius: '12px', backgroundColor: '#f8d7da', color: '#721c24', fontSize: '14px', border: '1px solid #f5c6cb', marginBottom: '16px' }}>
+          {searchError}
+        </div>
+      )}
       
       {!hasSearched ? (
         <div className="card" style={{ padding: '20px', borderRadius: '16px', backgroundColor: 'white', border: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -564,52 +594,165 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <h2 style={{ fontSize: '16px', color: '#6c757d', display: 'flex', justifyContent: 'space-between' }}>
-            Znalezione przejazdy (z bazy)
+            Znalezione przejazdy ({searchResults.length})
             <span style={{ fontSize: '13px', color: '#0d6efd', cursor: 'pointer' }} onClick={() => setHasSearched(false)}>Zmień filtry</span>
           </h2>
           
-          {searchResults.length === 0 && <div style={{ textAlign: 'center', color: '#6c757d' }}>Brak wyników</div>}
-          {searchResults.map(res => (
-            <div 
-              key={`${res.advertisementId}-${res.driverId}`}
-              style={{ backgroundColor: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e9ecef', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '40px', height: '40px', backgroundColor: '#0d6efd', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>K</div>
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: '#212529' }}>Kierowca #{res.driverId}</div>
-                    <div style={{ fontSize: '12px', color: '#6c757d' }}>Wolnych miejsc: {res.freeSeats}</div>
+          {searchResults.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e9ecef' }}>
+              Brak dopasowanych przejazdów w wybranych godzinach.
+            </div>
+          )}
+          {searchResults.map(res => {
+            const isJoined = joinedAdIds.includes(res.advertisementId);
+            const isCurrentJoining = joiningId === res.advertisementId;
+
+            return (
+              <div 
+                key={`${res.advertisementId}-${res.driverId}`}
+                style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '1px solid #e9ecef', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '42px', height: '42px', backgroundColor: '#0d6efd', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+                      K
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: '#212529' }}>Kierowca #{res.driverId}</div>
+                      <div style={{ fontSize: '12px', color: '#6c757d' }}>Wolnych miejsc: <strong>{res.freeSeats}</strong></div>
+                    </div>
                   </div>
                 </div>
+                
+                <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '10px', border: '1px solid #e9ecef' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#0d6efd" /> <strong>Odjazd:</strong> {res.departureTime}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={16} color="#198754" /> <strong>Dojście:</strong> do auta {res.pickupDistanceM}m, do celu {res.dropoffDistanceM}m</div>
+                </div>
+                
+                <button 
+                  disabled={isJoined || isCurrentJoining}
+                  onClick={() => handleJoinRide(res)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    borderRadius: '10px', 
+                    border: 'none', 
+                    backgroundColor: isJoined ? '#d1e7dd' : '#0d6efd', 
+                    color: isJoined ? '#0f5132' : 'white', 
+                    fontWeight: 600, 
+                    marginTop: '14px', 
+                    cursor: (isJoined || isCurrentJoining) ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: isJoined ? 'none' : '0 4px 6px -1px rgba(13, 110, 253, 0.2)'
+                  }}
+                >
+                  {isJoined ? (
+                    <>
+                      <CheckCircle2 size={18} /> Prośba wysłana
+                    </>
+                  ) : isCurrentJoining ? (
+                    'Wysyłanie...'
+                  ) : (
+                    'Poproś o dołączenie'
+                  )}
+                </button>
               </div>
-              
-              <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} /> Wyjazd: {res.departureTime}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={16} /> Dojście do auta: {res.pickupDistanceM}m, z auta: {res.dropoffDistanceM}m</div>
-              </div>
-              
-              <button 
-                onClick={async () => {
-                  if (!lastRequestId) return;
-                  try {
-                    await api.createMatch({
-                      advertisementId: res.advertisementId,
-                      requestId: lastRequestId,
-                      pickupSeq: res.pickupSeq,
-                      dropoffSeq: res.dropoffSeq
-                    });
-                    alert('Wysłano prośbę o dołączenie do przejazdu!');
-                  } catch(e: any) {
-                    alert('Błąd: ' + e.message);
-                  }
-                }}
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#e9ecef', color: '#212529', fontWeight: 'bold', marginTop: '16px', cursor: 'pointer' }}
-              >
-                Poproś o dołączenie
-              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {successModalData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '24px',
+            padding: '32px 24px',
+            maxWidth: '380px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: '#d1e7dd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0f5132'
+            }}>
+              <CheckCircle2 size={36} />
             </div>
-          ))}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#212529' }}>Wysłano prośbę!</h3>
+              <p style={{ margin: 0, fontSize: '14px', color: '#6c757d', lineHeight: '1.4' }}>
+                Twoja prośba o dołączenie do przejazdu kierowcy #{successModalData.driverId} została przesłana.
+              </p>
+            </div>
+
+            <div style={{
+              width: '100%',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              padding: '12px',
+              fontSize: '13px',
+              color: '#495057',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              border: '1px solid #e9ecef'
+            }}>
+              <div><strong>Odjazd:</strong> {successModalData.departureTime}</div>
+              <div><strong>Dojście do punktu zbiórki:</strong> {successModalData.pickupDistanceM}m</div>
+              <div><strong>Dojście z wysiadki:</strong> {successModalData.dropoffDistanceM}m</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSuccessModalData(null)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                backgroundColor: '#0d6efd',
+                color: 'white',
+                border: 'none',
+                fontWeight: 600,
+                fontSize: '15px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(13, 110, 253, 0.2)',
+                marginTop: '6px'
+              }}
+            >
+              Rozumiem
+            </button>
+          </div>
         </div>
       )}
     </div>
