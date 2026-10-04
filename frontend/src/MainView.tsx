@@ -40,7 +40,7 @@ export function MainView({ user, onLogout }: { user?: any, onLogout?: () => void
       )}
 
       <div style={{ flex: 1, overflowY: 'auto' }} onClick={() => setShowNotifications(false)}>
-        {activeTab === 'discover' && <DiscoverView user={user} />}
+        {activeTab === 'discover' && <DiscoverView user={user} onNavigateToChats={() => setActiveTab('chats')} />}
         {activeTab === 'chats' && <ChatsView />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
       </div>

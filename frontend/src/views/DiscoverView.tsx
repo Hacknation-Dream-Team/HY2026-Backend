@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2, Eye, Edit2, Trash2, Calendar, Users, X, AlertTriangle } from 'lucide-react';
+import { Car, UserCircle2, PlusCircle, Clock, MapPin, ArrowLeft, Search, CheckCircle2, Eye, Edit2, Trash2, Calendar, Users, X, AlertTriangle, MessageCircle } from 'lucide-react';
 import { MapRoute } from '../MapRoute';
 import { CarFormFields } from '../CarFormFields';
 import { api } from '../api';
 
-export function DiscoverView({ user }: { user?: any }) {
+export function DiscoverView({ user, onNavigateToChats }: { user?: any, onNavigateToChats?: () => void }) {
   const [roleTab, setRoleTab] = useState<'driver' | 'passenger'>('driver');
   const [action, setAction] = useState<'none' | 'offer' | 'search' | 'addCar'>('none');
   const [tempHasCar, setTempHasCar] = useState(false); // local mock state for when user adds car in this session
@@ -29,7 +29,7 @@ export function DiscoverView({ user }: { user?: any }) {
 
   if (action === 'addCar') return <AddCarView onBack={() => setAction('none')} onSaved={() => { setTempHasCar(true); setAction('offer'); }} />;
   if (action === 'offer') return <OfferRideView onBack={() => setAction('none')} user={user} />;
-  if (action === 'search') return <SearchRideView onBack={() => setAction('none')} />;
+  if (action === 'search') return <SearchRideView onBack={() => setAction('none')} user={user} onNavigateToChats={onNavigateToChats} />;
 
   return (
     <div className="fade-in" style={{ padding: '20px' }}>
@@ -48,7 +48,7 @@ export function DiscoverView({ user }: { user?: any }) {
       {roleTab === 'driver' ? (
         <DriverSection onOffer={handleOffer} user={user} />
       ) : (
-        <PassengerSection onSearch={() => setAction('search')} user={user} />
+        <PassengerSection onSearch={() => setAction('search')} user={user} onNavigateToChats={onNavigateToChats} />
       )}
     </div>
   );
@@ -748,7 +748,7 @@ function OfferRideView({ onBack, user }: { onBack: () => void, user?: any }) {
 }
 
 
-function SearchRideView({ onBack }: { onBack: () => void }) {
+function SearchRideView({ onBack, user, onNavigateToChats }: { onBack: () => void, user?: any, onNavigateToChats?: () => void }) {
   const [hasSearched, setHasSearched] = useState(false);
   const [direction, setDirection] = useState<'home-to-work' | 'work-to-home'>('home-to-work');
   const [selectedDays, setSelectedDays] = useState<string[]>(['Pn', 'Wt', 'Śr', 'Cz', 'Pt']);
@@ -756,10 +756,29 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
   const [timeValue, setTimeValue] = useState('07:00');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [lastRequestId, setLastRequestId] = useState<number | null>(null);
+  const [isRequestSaved, setIsRequestSaved] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
   const [joinedAdIds, setJoinedAdIds] = useState<number[]>([]);
   const [successModalData, setSuccessModalData] = useState<any | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getOrganizations().then(setOrganizations).catch(console.error);
+  }, []);
+
+  const userOrg = organizations.find(o => o.id === user?.organizationId || o.name === user?.organizationName);
+  const home = user?.homeAddress || user?.homeAddressText || 'Adres domowy';
+  const org = userOrg?.address || user?.organizationName || 'Miejsce pracy';
+
+  const homeCoords = useMemo(() => user?.homeLocation ? { lat: user.homeLocation.latitude, lng: user.homeLocation.longitude } : null, [user?.homeLocation?.latitude, user?.homeLocation?.longitude]);
+  const orgCoords = useMemo(() => userOrg?.location ? { lat: userOrg.location.latitude, lng: userOrg.location.longitude } : null, [userOrg?.location?.latitude, userOrg?.location?.longitude]);
+
+  const startAddress = direction === 'home-to-work' ? home : org;
+  const endAddress = direction === 'home-to-work' ? org : home;
+  const startCoords = direction === 'home-to-work' ? homeCoords : orgCoords;
+  const endCoords = direction === 'home-to-work' ? orgCoords : homeCoords;
 
   const toggleDay = (day: string) => {
     setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
@@ -770,25 +789,23 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
     return map[day];
   };
 
+  const handleBack = async () => {
+    if (lastRequestId && !isRequestSaved && joinedAdIds.length === 0) {
+      try {
+        await api.deleteRideRequest(lastRequestId);
+      } catch (err) {
+        console.warn('Could not clean up temporary search ride request', err);
+      }
+    }
+    onBack();
+  };
+
   const handleSearch = async () => {
+    setLoading(true);
     setHasSearched(true);
     setSearchError(null);
     try {
       const targetDirection = direction === 'home-to-work' ? 'ToWork' : 'ToHome';
-
-      // Clean up previous ride request for this direction if it exists
-      try {
-        const existingRequests = await api.getRideRequests();
-        if (Array.isArray(existingRequests)) {
-          for (const req of existingRequests) {
-            if (req.direction === targetDirection || req.direction === (targetDirection === 'ToWork' ? 0 : 1)) {
-              await api.deleteRideRequest(req.id);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Could not clean up existing ride requests', err);
-      }
 
       const req = await api.createRideRequest({
         direction: targetDirection,
@@ -796,12 +813,67 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
         daysOfWeek: selectedDays.map(mapDaysToEnum).filter(v => v !== undefined)
       });
       setLastRequestId(req.id);
-      
-      const results = await api.searchMatches({ requestId: req.id });
-      setSearchResults(results || []);
+      setIsRequestSaved(false);
+
+      let matchResults: any[] = [];
+      try {
+        matchResults = await api.searchMatches({
+          requestId: req.id,
+          maxDistanceMeters: 5000,
+          timeWindowMinutes: 120
+        });
+      } catch (err) {
+        console.warn('PostGIS searchMatches warning:', err);
+      }
+
+      let allAds: any[] = [];
+      let allRoutes: any[] = [];
+      try {
+        allAds = await api.getAdvertisements();
+        allRoutes = await api.getRoutes();
+      } catch (err) {
+        console.warn('Could not fetch advertisements:', err);
+      }
+
+      const map = new Map<number, any>();
+
+      if (Array.isArray(matchResults)) {
+        for (const mr of matchResults) {
+          map.set(mr.advertisementId, {
+            ...mr,
+            daysOfWeek: selectedDays
+          });
+        }
+      }
+
+      if (Array.isArray(allAds)) {
+        for (const ad of allAds) {
+          const r = allRoutes.find(rt => rt.id === ad.routeId);
+          const adDir = r ? r.direction : ad.direction;
+          const isSameDir = (adDir === targetDirection) ||
+                            (targetDirection === 'ToWork' && (adDir === 0 || adDir === 'ToWork')) ||
+                            (targetDirection === 'ToHome' && (adDir === 1 || adDir === 'ToHome'));
+
+          if (isSameDir && !map.has(ad.id)) {
+            map.set(ad.id, {
+              advertisementId: ad.id,
+              driverId: r?.userId || ad.userId || 1,
+              freeSeats: ad.seats,
+              departureTime: typeof ad.departureTime === 'string' ? ad.departureTime.substring(0, 5) : ad.departureTime,
+              daysOfWeek: ad.daysOfWeek,
+              pickupSeq: 0,
+              dropoffSeq: 1
+            });
+          }
+        }
+      }
+
+      setSearchResults(Array.from(map.values()));
     } catch (e: any) {
       setSearchError(e.message || 'Błąd podczas wyszukiwania przejazdów');
       setHasSearched(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -812,9 +884,10 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
       await api.createMatch({
         advertisementId: res.advertisementId,
         requestId: lastRequestId,
-        pickupSeq: res.pickupSeq,
-        dropoffSeq: res.dropoffSeq
+        pickupSeq: res.pickupSeq ?? 0,
+        dropoffSeq: res.dropoffSeq ?? 1
       });
+      setIsRequestSaved(true);
       setJoinedAdIds(prev => [...prev, res.advertisementId]);
       setSuccessModalData(res);
     } catch (e: any) {
@@ -827,7 +900,7 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
   return (
     <div className="fade-in" style={{ padding: '20px', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
+        <button onClick={handleBack} style={{ background: 'none', border: 'none', color: '#212529', cursor: 'pointer', padding: '4px' }}>
           <ArrowLeft size={24} />
         </button>
         <h1 style={{ fontSize: '20px', margin: 0 }}>Szukaj przejazdu</h1>
@@ -878,78 +951,141 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
             <input type="time" value={timeValue} onChange={e => setTimeValue(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none', marginTop: '4px' }} />
           </div>
 
-          <button className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd' }} onClick={handleSearch}>
-            Szukaj w bazie
+          <button disabled={loading} className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', marginTop: '10px', fontSize: '16px', backgroundColor: '#0d6efd', cursor: loading ? 'wait' : 'pointer' }} onClick={handleSearch}>
+            {loading ? 'Szukanie przejazdów...' : 'Szukaj przejazdów'}
           </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h2 style={{ fontSize: '16px', color: '#6c757d', display: 'flex', justifyContent: 'space-between' }}>
-            Znalezione przejazdy ({searchResults.length})
-            <span style={{ fontSize: '13px', color: '#0d6efd', cursor: 'pointer' }} onClick={() => setHasSearched(false)}>Zmień filtry</span>
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '16px', color: '#6c757d', margin: 0 }}>
+              Znalezione przejazdy ({searchResults.length})
+            </h2>
+            <span style={{ fontSize: '13px', color: '#0d6efd', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setHasSearched(false)}>Zmień filtry</span>
+          </div>
           
           {searchResults.length === 0 && (
             <div style={{ textAlign: 'center', color: '#6c757d', padding: '40px 20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #e9ecef' }}>
               Brak dopasowanych przejazdów w wybranych godzinach.
             </div>
           )}
+
           {searchResults.map(res => {
             const isJoined = joinedAdIds.includes(res.advertisementId);
             const isCurrentJoining = joiningId === res.advertisementId;
+            const formattedTime = typeof res.departureTime === 'string' ? res.departureTime.substring(0, 5) : res.departureTime;
 
             return (
               <div 
                 key={`${res.advertisementId}-${res.driverId}`}
-                style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '1px solid #e9ecef', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}
+                style={{ 
+                  backgroundColor: 'white', 
+                  padding: '18px', 
+                  borderRadius: '16px', 
+                  border: '1px solid #e9ecef', 
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ width: '42px', height: '42px', backgroundColor: '#0d6efd', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px' }}>
                       K
                     </div>
                     <div>
                       <div style={{ fontWeight: 'bold', color: '#212529' }}>Kierowca #{res.driverId}</div>
-                      <div style={{ fontSize: '12px', color: '#6c757d' }}>Wolnych miejsc: <strong>{res.freeSeats}</strong></div>
+                      <div style={{ fontSize: '12px', color: '#6c757d' }}>Wolnych miejsc: <strong>{res.freeSeats ?? 3}</strong></div>
                     </div>
                   </div>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#e7f1ff', color: '#0d6efd', padding: '4px 10px', borderRadius: '20px' }}>
+                    {direction === 'home-to-work' ? 'Dom ➔ Praca' : 'Praca ➔ Dom'}
+                  </span>
+                </div>
+
+                {/* Map Preview */}
+                <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #dee2e6' }}>
+                  <MapRoute
+                    startAddress={startAddress}
+                    endAddress={endAddress}
+                    startCoords={startCoords}
+                    endCoords={endCoords}
+                    readOnlyStartEnd={true}
+                  />
                 </div>
                 
+                {/* Time & details info */}
                 <div style={{ fontSize: '14px', color: '#495057', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '10px', border: '1px solid #e9ecef' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#0d6efd" /> <strong>Odjazd:</strong> {res.departureTime}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={16} color="#198754" /> <strong>Dojście:</strong> do auta {res.pickupDistanceM}m, do celu {res.dropoffDistanceM}m</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={16} color="#0d6efd" /> <strong>Odjazd:</strong> {formattedTime}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Calendar size={16} color="#0d6efd" /> <strong>Dni:</strong> {formatDays(res.daysOfWeek)}
+                  </div>
+                  {res.pickupDistanceM !== undefined && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MapPin size={16} color="#198754" /> <strong>Dojście:</strong> do auta {res.pickupDistanceM}m, do celu {res.dropoffDistanceM}m
+                    </div>
+                  )}
                 </div>
                 
-                <button 
-                  disabled={isJoined || isCurrentJoining}
-                  onClick={() => handleJoinRide(res)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px', 
-                    borderRadius: '10px', 
-                    border: 'none', 
-                    backgroundColor: isJoined ? '#d1e7dd' : '#0d6efd', 
-                    color: isJoined ? '#0f5132' : 'white', 
-                    fontWeight: 600, 
-                    marginTop: '14px', 
-                    cursor: (isJoined || isCurrentJoining) ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: isJoined ? 'none' : '0 4px 6px -1px rgba(13, 110, 253, 0.2)'
-                  }}
-                >
-                  {isJoined ? (
-                    <>
-                      <CheckCircle2 size={18} /> Prośba wysłana
-                    </>
-                  ) : isCurrentJoining ? (
-                    'Wysyłanie...'
-                  ) : (
-                    'Poproś o dołączenie'
-                  )}
-                </button>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    disabled={isJoined || isCurrentJoining}
+                    onClick={() => handleJoinRide(res)}
+                    style={{ 
+                      flex: 2, 
+                      padding: '12px', 
+                      borderRadius: '10px', 
+                      border: 'none', 
+                      backgroundColor: isJoined ? '#d1e7dd' : '#0d6efd', 
+                      color: isJoined ? '#0f5132' : 'white', 
+                      fontWeight: 600, 
+                      cursor: (isJoined || isCurrentJoining) ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: isJoined ? 'none' : '0 4px 6px -1px rgba(13, 110, 253, 0.2)'
+                    }}
+                  >
+                    {isJoined ? (
+                      <>
+                        <CheckCircle2 size={18} /> Prośba wysłana
+                      </>
+                    ) : isCurrentJoining ? (
+                      'Wysyłanie...'
+                    ) : (
+                      <>
+                        <PlusCircle size={18} /> Poproś o dołączenie
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { if (onNavigateToChats) onNavigateToChats(); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '1px solid #ced4da',
+                      backgroundColor: '#f8f9fa',
+                      color: '#212529',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <MessageCircle size={18} color="#0d6efd" /> Czaty
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -1019,9 +1155,13 @@ function SearchRideView({ onBack }: { onBack: () => void }) {
               gap: '6px',
               border: '1px solid #e9ecef'
             }}>
-              <div><strong>Odjazd:</strong> {successModalData.departureTime}</div>
-              <div><strong>Dojście do punktu zbiórki:</strong> {successModalData.pickupDistanceM}m</div>
-              <div><strong>Dojście z wysiadki:</strong> {successModalData.dropoffDistanceM}m</div>
+              <div><strong>Odjazd:</strong> {typeof successModalData.departureTime === 'string' ? successModalData.departureTime.substring(0, 5) : successModalData.departureTime}</div>
+              {successModalData.pickupDistanceM !== undefined && (
+                <>
+                  <div><strong>Dojście do punktu zbiórki:</strong> {successModalData.pickupDistanceM}m</div>
+                  <div><strong>Dojście z wysiadki:</strong> {successModalData.dropoffDistanceM}m</div>
+                </>
+              )}
             </div>
 
             <button
