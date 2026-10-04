@@ -27,6 +27,10 @@ public class RideRequestsController : ControllerBase
             var request = await _rideRequestService.CreateRideRequestAsync(userId, createDto);
             return CreatedAtAction(nameof(GetRideRequest), new { id = request.Id }, request);
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
         catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
         {
             return BadRequest(new { message = ex.Message });

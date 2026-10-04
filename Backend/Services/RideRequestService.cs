@@ -16,6 +16,12 @@ public class RideRequestService : IRideRequestService
 
     public async Task<RideRequestDto> CreateRideRequestAsync(long userId, CreateRideRequestDto createDto)
     {
+        var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+        if (!userExists)
+        {
+            throw new KeyNotFoundException($"User with ID {userId} does not exist in database. Please log in again to refresh your session.");
+        }
+
         var request = new RideRequest
         {
             UserId = userId,
