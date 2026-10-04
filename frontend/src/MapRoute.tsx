@@ -225,13 +225,6 @@ export function MapRoute({
       const latlng = e.latlng;
 
       if (readOnlyStartEndRef.current) {
-        setShowMidPoint(true);
-        updateMidPoint(latlng);
-        setWaypointsOnRoutingControl();
-        setIsLoading(true);
-        const addr = await reverseGeocode(latlng.lat, latlng.lng);
-        setMidAddressRef.current(addr);
-        setIsLoading(false);
         return;
       }
 
@@ -421,29 +414,31 @@ export function MapRoute({
           </div>
 
           {/* Optional Mid Point */}
-          {showMidPoint ? (
-            <div className="fade-in" style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#fff8f0', padding: '10px 12px', borderRadius: '10px', border: '1px solid #ffd8a8' }}>
-              <MapPin size={16} color="#fd7e14" style={{ flexShrink: 0 }} />
-              <input
-                type="text"
-                value={midAddress}
-                onChange={(e) => setMidAddress(e.target.value)}
-                placeholder="Przejeżdżam przez (punkt pośredni)..."
-                style={{ flex: 1, border: 'none', backgroundColor: 'transparent', fontSize: '14px', outline: 'none', color: '#212529' }}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchMid()}
-              />
-              <button type="button" onClick={handleClearMidPoint} title="Usuń punkt pośredni" style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '2px' }}>
-                <X size={16} />
+          {!readOnlyStartEnd && (
+            showMidPoint ? (
+              <div className="fade-in" style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#fff8f0', padding: '10px 12px', borderRadius: '10px', border: '1px solid #ffd8a8' }}>
+                <MapPin size={16} color="#fd7e14" style={{ flexShrink: 0 }} />
+                <input
+                  type="text"
+                  value={midAddress}
+                  onChange={(e) => setMidAddress(e.target.value)}
+                  placeholder="Przejeżdżam przez (punkt pośredni)..."
+                  style={{ flex: 1, border: 'none', backgroundColor: 'transparent', fontSize: '14px', outline: 'none', color: '#212529' }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchMid()}
+                />
+                <button type="button" onClick={handleClearMidPoint} title="Usuń punkt pośredni" style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '2px' }}>
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowMidPoint(true)}
+                style={{ padding: '4px 8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'transparent', border: 'none', color: '#0d6efd', cursor: 'pointer', alignSelf: 'flex-start', fontWeight: '600' }}
+              >
+                <PlusCircle size={15} /> Dodaj punkt pośredni (kliknij też na mapie)
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowMidPoint(true)}
-              style={{ padding: '4px 8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'transparent', border: 'none', color: '#0d6efd', cursor: 'pointer', alignSelf: 'flex-start', fontWeight: '600' }}
-            >
-              <PlusCircle size={15} /> Dodaj punkt pośredni (kliknij też na mapie)
-            </button>
+            )
           )}
 
           {/* End Point */}
