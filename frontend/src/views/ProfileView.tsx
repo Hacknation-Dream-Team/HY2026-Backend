@@ -42,10 +42,9 @@ export function ProfileView({ user, onLogout }: { user?: any, onLogout?: () => v
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Płeć</label>
             <select defaultValue={user?.gender !== undefined ? user.gender : ''} className="input-field" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #ced4da', outline: 'none' }}>
               <option value="">Wybierz...</option>
-              <option value="1">Mężczyzna</option>
-              <option value="0">Kobieta</option>
-              <option value="2">Inne</option>
-              <option value="2">Nie chcę podawać</option>
+              <option value="Male">Mężczyzna</option>
+              <option value="Female">Kobieta</option>
+              <option value="Other">Inne / Nie chcę podawać</option>
             </select>
           </div>
           

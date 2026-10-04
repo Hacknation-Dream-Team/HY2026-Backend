@@ -9,7 +9,18 @@ export const api = {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Registration failed: ${res.status} - ${text}`);
+      let message = `Registration failed: ${res.status}`;
+      try {
+        const json = JSON.parse(text);
+        if (json.message) {
+          message = json.message;
+        } else if (json.errors) {
+          message = Object.values(json.errors).flat().join('\n');
+        }
+      } catch {
+        message += ` - ${text}`;
+      }
+      throw new Error(message);
     }
     return res.json();
   },
