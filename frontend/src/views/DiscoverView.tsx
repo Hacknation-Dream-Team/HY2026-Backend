@@ -243,8 +243,9 @@ function DriverSection({ onOffer, user }: { onOffer: () => void, user?: any }) {
   );
 }
 
-function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any }) {
+function PassengerSection({ onSearch, user, onNavigateToChats }: { onSearch: () => void, user?: any, onNavigateToChats?: (userId?: number) => void }) {
   const [requests, setRequests] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [editingReq, setEditingReq] = useState<any | null>(null);
@@ -252,6 +253,7 @@ function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any
 
   const fetchRequests = useCallback(() => {
     api.getRideRequests().then(setRequests).catch(console.error);
+    api.getMyMatches().then(setMatches).catch(console.error);
     api.getOrganizations().then(setOrganizations).catch(console.error);
   }, []);
 
@@ -312,6 +314,12 @@ function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any
               const directionName = (req.direction === 0 || req.direction === 'ToWork') 
                 ? 'Dom ➔ Praca' : 'Praca ➔ Dom';
 
+              const reqMatches = matches.filter(m => m.requestId === req.id);
+              const acceptedMatch = reqMatches.find(m => m.status === 'Accepted' || m.status === 1 || m.status === '1');
+              const pendingMatch = reqMatches.find(m => m.status === 'Pending' || m.status === 0 || m.status === '0');
+              const rejectedMatch = reqMatches.find(m => m.status === 'Rejected' || m.status === 2 || m.status === '2');
+              const activeMatch = acceptedMatch || pendingMatch || rejectedMatch || reqMatches[0];
+
               return (
                 <div 
                   key={req.id} 
@@ -340,10 +348,74 @@ function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any
                     }}>
                       <MapPin size={13} /> {directionName}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#0d6efd', fontWeight: 'bold', backgroundColor: '#e7f1ff', padding: '4px 10px', borderRadius: '20px' }}>
-                      Pasażer
-                    </span>
+
+                    {/* Status Badge Top Right */}
+                    {acceptedMatch ? (
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#d1e7dd', color: '#0f5132', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={13} /> Zaakceptowano
+                      </span>
+                    ) : pendingMatch ? (
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#fff3cd', color: '#664d03', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={13} /> Oczekuje na decyzję
+                      </span>
+                    ) : rejectedMatch ? (
+                      <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#f8d7da', color: '#842029', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertTriangle size={13} /> Odrzucono
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#0d6efd', fontWeight: 'bold', backgroundColor: '#e7f1ff', padding: '4px 10px', borderRadius: '20px' }}>
+                        Pasażer
+                      </span>
+                    )}
                   </div>
+
+                  {/* Status Banner inside card */}
+                  {acceptedMatch ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#d1e7dd', color: '#0f5132', border: '1px solid #badbcc', fontSize: '13px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CheckCircle2 size={16} color="#198754" />
+                        <span>Kierowca {acceptedMatch.driverName || `#${acceptedMatch.driverUserId}`} zaakceptował Twój przejazd!</span>
+                      </div>
+                      {onNavigateToChats && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigateToChats(acceptedMatch.driverUserId); }}
+                          style={{ backgroundColor: '#198754', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <MessageCircle size={14} /> Czat
+                        </button>
+                      )}
+                    </div>
+                  ) : pendingMatch ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#fff3cd', color: '#664d03', border: '1px solid #ffecb5', fontSize: '13px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={16} color="#ffc107" />
+                        <span>Prośba wysłana do kierowcy {pendingMatch.driverName || `#${pendingMatch.driverUserId}`} — Oczekuje na decyzję.</span>
+                      </div>
+                      {onNavigateToChats && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigateToChats(pendingMatch.driverUserId); }}
+                          style={{ backgroundColor: '#ffc107', color: '#212529', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <MessageCircle size={14} /> Czat
+                        </button>
+                      )}
+                    </div>
+                  ) : rejectedMatch ? (
+                    <div style={{ padding: '10px 14px', borderRadius: '12px', backgroundColor: '#f8d7da', color: '#842029', border: '1px solid #f5c6cb', fontSize: '13px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AlertTriangle size={16} color="#dc3545" />
+                        <span>Kierowca {rejectedMatch.driverName || `#${rejectedMatch.driverUserId}`} odrzucił tę prośbę.</span>
+                      </div>
+                      {onNavigateToChats && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNavigateToChats(rejectedMatch.driverUserId); }}
+                          style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <MessageCircle size={14} /> Czat
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
 
                   <div 
                     onClick={() => setSelectedReq(req)} 
@@ -363,14 +435,16 @@ function PassengerSection({ onSearch, user }: { onSearch: () => void, user?: any
                       onClick={() => setSelectedReq(req)} 
                       style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', border: '1px solid #cfe2ff', backgroundColor: '#eff6ff', color: '#0d6efd', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                     >
-                      <Eye size={15} /> Szczegóły / Trasa
+                      <Eye size={15} /> Szczegóły
                     </button>
-                    <button 
-                      onClick={() => setEditingReq(req)} 
-                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #dee2e6', backgroundColor: '#f8f9fa', color: '#495057', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    >
-                      <Edit2 size={15} /> Edytuj
-                    </button>
+                    {activeMatch && onNavigateToChats && (
+                      <button 
+                        onClick={() => onNavigateToChats(activeMatch.driverUserId)} 
+                        style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #0d6efd', backgroundColor: '#0d6efd', color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <MessageCircle size={15} /> Czat
+                      </button>
+                    )}
                     <button 
                       onClick={() => setDeletingReq(req)} 
                       style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
@@ -1357,15 +1431,17 @@ function RideDetailsModal({
 
         {/* Footer buttons */}
         <div style={{ padding: '16px 20px', borderTop: '1px solid #e9ecef', display: 'flex', gap: '10px', backgroundColor: '#fafafa', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px' }}>
-          <button 
-            onClick={onEdit} 
-            style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #dee2e6', backgroundColor: 'white', color: '#212529', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-          >
-            <Edit2 size={16} /> Edytuj przejazd
-          </button>
+          {isDriver && (
+            <button 
+              onClick={onEdit} 
+              style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #dee2e6', backgroundColor: 'white', color: '#212529', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <Edit2 size={16} /> Edytuj przejazd
+            </button>
+          )}
           <button 
             onClick={onDelete} 
-            style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            style={{ flex: isDriver ? '0 0 auto' : 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #ffe3e3', backgroundColor: '#fff5f5', color: '#dc3545', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <Trash2 size={16} /> Usuń
           </button>

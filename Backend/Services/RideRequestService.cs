@@ -16,14 +16,6 @@ public class RideRequestService : IRideRequestService
 
     public async Task<RideRequestDto> CreateRideRequestAsync(long userId, CreateRideRequestDto createDto)
     {
-        var existingRequest = await _context.RideRequests
-            .FirstOrDefaultAsync(r => r.UserId == userId && r.Direction == createDto.Direction);
-
-        if (existingRequest != null)
-        {
-            throw new InvalidOperationException($"User already has a ride request for direction '{createDto.Direction}'.");
-        }
-
         var request = new RideRequest
         {
             UserId = userId,

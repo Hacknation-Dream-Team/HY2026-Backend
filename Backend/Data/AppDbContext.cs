@@ -52,11 +52,6 @@ public class AppDbContext : DbContext
             entity.HasIndex(r => new { r.UserId, r.Direction }).IsUnique();
         });
 
-        modelBuilder.Entity<RideRequest>(entity =>
-        {
-            entity.HasIndex(rr => new { rr.UserId, rr.Direction }).IsUnique();
-        });
-
         modelBuilder.Entity<RoutePoint>(entity =>
         {
             entity.HasKey(rp => new { rp.RouteId, rp.Seq });
